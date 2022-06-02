@@ -66,6 +66,7 @@ e.g. the SARS-CoV-2 spike protein.
 - weights: a sample-level multiplier to apply to node weights. For example, if we want to call lineages and specifically give weights 
 for samples from the UK less weight, since they are heavily sequenced, we can apply a multiplier of 0.5 to the weights contributed by
 samples from the UK to make them matter half as much as other samples on the tree for deciding optimal lineage locations.
+- current: a set of preexisting lineages to use as the initial parent level in a hierarchical structure. Preserved as they are in all cases, with new lineages generated as sublineages only.
 
 ## Feedback
 
