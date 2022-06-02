@@ -23,9 +23,13 @@ by proposing new sublineages automatically.
 
 ## Implementation
 
-The prototype implementation in "automate_lineages.py" is dependent on [BTE](https://github.com/jmcbroome/BTE). It is in very early stages and is likely buggy.
+The prototype implementation in "automate_lineages.py" is dependent on [BTE](https://github.com/jmcbroome/BTE). You can install BTE from bioconda.
 
-It takes a tree in the MAT format, usually downloaded from [here](http://hgdownload.soe.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/). This repository also includes a small test MAT containing only 
+```
+conda install -c bioconda bte
+```
+
+This prototype is in very early stages and is likely buggy. It takes a tree in the MAT format, usually downloaded from [here](http://hgdownload.soe.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/). This repository also includes a small test MAT containing only 
 10,000 samples.
 
 Currently available parameters are
@@ -67,10 +71,4 @@ samples by the inverse of their representation across the tree (if Peru consists
 
 ## Feedback
 
-Feel free to try this method out! You can install BTE from bioconda.
-
-```
-conda install -c bioconda bte
-```
-
-Please report bugs and give feedback in the issues. You can also email me at jmcbroom@ucsc.edu.
+Feel free to try this method out! Please report bugs and give feedback in the issues. You can also email me at jmcbroom@ucsc.edu.
