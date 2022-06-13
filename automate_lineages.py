@@ -194,7 +194,7 @@ def parse_categorical_weights(wf):
             weightd[sample] = weight
             total += 1
     for k,v in weightd.items():
-        weightd[k] = total / weightcounts[v]
+        weightd[k] = 1 + 1 - (weightcounts[v]/total)
     return weightd
 
 def argparser():
