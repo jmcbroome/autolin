@@ -200,8 +200,8 @@ def parse_categorical_weights(wf):
 def argparser():
     parser = argparse.ArgumentParser(description="Generate lineage assignments for a phylogeny based on total genotype representation.")
     parser.add_argument("-i", "--input", required=True, help='Path to protobuf to annotate.')
-    parser.add_argument("-a", "--count", type=int, help="Maximum number of annotations to use for each annotation level. Default is 10.", default = 10)
-    parser.add_argument("-l", "--levels", type=int, help="Maximum number of levels of hierarchical annotation to perform. Default 1.", default = 1)
+    parser.add_argument("-a", "--count", type=int, help="Maximum number of annotations to use for each annotation level. Default is 5.", default = 5)
+    parser.add_argument("-l", "--levels", type=int, help="Maximum number of levels of hierarchical annotation to perform. Default 2.", default = 2)
     parser.add_argument("-z", "--size", type=int, help="Maximum size for a final annotation level. Lineages larger than this will be further subdivided as maximum levels allow. Default behavior does not use this value.",default=0)
     parser.add_argument("-o", "--output", help="Name of the file to write lineage node assignments to.", default = None)
     parser.add_argument("-m", "--metadata", help="Name of the file to write samples and their highest-level annotation to, for use with Nextstrain.", default = None)
@@ -211,6 +211,7 @@ def argparser():
     parser.add_argument("-w", "--weights", help="Pass a two-column tab-delimited file containing sample names in the first column and weights in the second column. Default for any sample not included is weight 1.", default=None)
     parser.add_argument("-cw", "--categorical_weights", help="Pass two-column tab-delimited file containing categorical metadata for each sample to be used for inverse frequency weighting.", default=None)
     parser.add_argument("-nw", "--continuous_weights", help="Pass two-column tab-delimited file containing continuous metadata for each sample to be used for continuous value weighting. The values should be integers or floats.", default=None)
+    parser.add_argument("-wm", "--weight_exponent", type=float, help="Raise weights to the power of the indicated value. Increasing this increases the importance of metadata multipliers and other weight differences. Default 1.", default=1)
     parser.add_argument("-c", "--current", help="Pass a tab-delimited file containing node ids and their corresponding annotations. These will be used to start the first level of annotations.", default=None)
     args = parser.parse_args()
     return args
@@ -245,6 +246,9 @@ def main():
             cwd = parse_categorical_weights(args.categorical_weights)
             for k,v in wd.items():
                 wd[k] = v * cwd.get(k,1)
+    if args.weight_exponent != 1:
+        for k,v in wd.items():
+            wd[k] = v ** args.weight_exponent
     t = bte.MATree(args.input)
     labeld = label_lineages_hierarchical(t, serial_count=args.count,levels=args.levels, coverage_threshold=args.threshold,ranges=ranges,size=args.size,sweights=wd,current_annotations=ad)
     if args.output != None:
