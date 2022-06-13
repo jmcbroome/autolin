@@ -2,6 +2,7 @@ import bte
 import os
 import sys
 import argparse
+import numpy as np
 
 #######################################################################################################################################
 # This script contains a very early prototype implementation of a single automated lineage labeling algorithm.
@@ -169,6 +170,33 @@ def parse_weights(wf):
             weightd[sample] = float(weight)
     return weightd
 
+def parse_continuous_weights(wf):
+    weightd = {}
+    with open(wf) as inf:
+        for entry in inf:
+            sample, weight = entry.strip().split("\t")
+            weightd[sample] = float(weight)
+    maxw = max(weightd.values())
+    for k,v in weightd.items():
+        weightd[k] = (1 + v / maxw)
+    return weightd
+
+def parse_categorical_weights(wf):
+    weightd = {}
+    weightcounts = {}
+    total = 0
+    with open(wf) as inf:
+        for entry in inf:
+            sample, weight = entry.strip().split("\t")
+            if weight not in weightcounts:
+                weightcounts[weight] = 0
+            weightcounts[weight] += 1
+            weightd[sample] = weight
+            total += 1
+    for k,v in weightd.items():
+        weightd[k] = total / weightcounts[v]
+    return weightd
+
 def argparser():
     parser = argparse.ArgumentParser(description="Generate lineage assignments for a phylogeny based on total genotype representation.")
     parser.add_argument("-i", "--input", required=True, help='Path to protobuf to annotate.')
@@ -181,6 +209,8 @@ def argparser():
     parser.add_argument("-s", "--silent", action='store_true', help="Supress stderr output from this tool. Note that this may silence error messages.")
     parser.add_argument("-r", "--range", help="Pass a bed file containing intervals; mutations within these intervals will be used to construct genotypes. If this option is unused, the whole genome is used.", default=None)
     parser.add_argument("-w", "--weights", help="Pass a two-column tab-delimited file containing sample names in the first column and weights in the second column. Default for any sample not included is weight 1.", default=None)
+    parser.add_argument("-cw", "--categorical_weights", help="Pass two-column tab-delimited file containing categorical metadata for each sample to be used for inverse frequency weighting.", default=None)
+    parser.add_argument("-nw", "--continuous_weights", help="Pass two-column tab-delimited file containing continuous metadata for each sample to be used for continuous value weighting. The values should be integers or floats.", default=None)
     parser.add_argument("-c", "--current", help="Pass a tab-delimited file containing node ids and their corresponding annotations. These will be used to start the first level of annotations.", default=None)
     args = parser.parse_args()
     return args
@@ -197,8 +227,24 @@ def main():
     if args.current != None:
         ad = parse_current_annotations(args.current)
     wd = {}
+    #note: current setup means that only samples included in the first metadata file read will be included in the output
+    #when revising into C++ production code, consider methods for combining metadata files that may or may not contain any set of samples
     if args.weights != None:
         wd = parse_weights(args.weights)
+    if args.continuous_weights != None:
+        if len(wd) == 0:
+            wd = parse_continuous_weights(args.continuous_weights)
+        else:
+            cwd = parse_continuous_weights(args.continuous_weights)
+            for k,v in wd.items():
+                wd[k] = v * cwd.get(k,1)
+    if args.categorical_weights != None:
+        if len(wd) == 0:
+            wd = parse_categorical_weights(args.categorical_weights)
+        else:
+            cwd = parse_categorical_weights(args.categorical_weights)
+            for k,v in wd.items():
+                wd[k] = v * cwd.get(k,1)
     t = bte.MATree(args.input)
     labeld = label_lineages_hierarchical(t, serial_count=args.count,levels=args.levels, coverage_threshold=args.threshold,ranges=ranges,size=args.size,sweights=wd,current_annotations=ad)
     if args.output != None:
