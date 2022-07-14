@@ -80,6 +80,7 @@ def compute_representation_map(tree, skip = set(), subroot = None, ranges = [], 
         base = tree.root.id
     else:
         base = subroot
+    fmult = 0
     for l in tree.get_leaves_ids(base):
         #when computing lineages serially, skip samples that were already assigned to another lineage.
         if l not in skip:
@@ -87,9 +88,13 @@ def compute_representation_map(tree, skip = set(), subroot = None, ranges = [], 
             mult = sweights.get(l,1)
             for anc, prop in compute_representation_scores(l, tree, subroot, ranges):
                 if anc not in repmap:
-                    repmap[anc] = 0
-                repmap[anc] += prop * mult
-    return repmap
+                    repmap[anc] = []
+                fmult += 1 * mult
+                repmap[anc].append(prop)
+    #mean of proportions, instead of sum, to parallel the more theoretically calculable approach.
+    #times the total number of descendents (including multipliers)
+    mean_repmap = {k:np.mean(v)*fmult for k,v in repmap.items()}
+    return mean_repmap
 
 def label_lineages_serial(tree, count = 5, subroot = None, coverage_threshold = 0.95, ranges = [], sweights={}):
     """To compute multiple lineage labels serially (meaning one is not a subset of another and all labels are mutually exclusive)
