@@ -1,7 +1,6 @@
 import bte
 import sys
 import argparse
-# from automate_lineages import label_lineages_serial
 def simple_node_distance(t, nid, pnid):
     td = 0
     for anc in t.rsearch(nid,True):
@@ -10,7 +9,7 @@ def simple_node_distance(t, nid, pnid):
         td += len(anc.mutations)
     return td
 
-def evaluate_candidate(t, a, nid, pgp_d, ignore = []):
+def evaluate_candidate(t, a, nid, pgp_d, ignore = set()):
     """Evaluate a candidate branch as a putative sublineage.
 
     Args:
@@ -19,12 +18,12 @@ def evaluate_candidate(t, a, nid, pgp_d, ignore = []):
         nid (str): The node id of the candidate branch.
     """
     leaves = [l for l in t.get_leaves(nid) if l.id not in ignore]
+    if len(leaves) == 0:
+        return 0
     candidate_to_parent = simple_node_distance(t, nid, a)
     if candidate_to_parent == 0:
         return 0
     total_distances = 0
-    if len(leaves) == 0:
-        return 0
     for l in leaves:
         dist = simple_node_distance(t, l.id, nid)
         total_distances += dist
@@ -47,7 +46,7 @@ def get_plin_distance(t,nid):
             continue
     return td
 
-def evaluate_lineage(t, anid, ignore = [], floor = 0, maxpath = 100):
+def evaluate_lineage(t, anid, ignore = set(), floor = 0, maxpath = 100):
     """Evaluate every descendent branch of lineage a to propose new sublineages.
 
     Args:
@@ -82,12 +81,10 @@ def argparser():
 def main():
     args = argparser()
     t = bte.MATree(args.input)
-    if args.clear:
-        t.apply_annotations({node.id:[] for node in t.depth_first_expansion()})
-        # nlabels = label_lineages_serial(t,count=5)
-        # t.apply_annotations(nlabels)
     if args.dump != None:
         dumpf = open(args.dump,'w+')
+    if args.clear:
+        t.apply_annotations({node.id:[] for node in t.depth_first_expansion()})
     annotes = t.dump_annotations()
     if len(annotes) == 0:
         print("No lineages found in tree; starting from root.")
@@ -96,31 +93,34 @@ def main():
     #keep going until the length of the annotation dictionary doesn't change.
     if args.dump != None:
         print("parent\tparent_nid\tproposed_sublineage\tproposed_sublineage_nid\tproposed_sublineage_score",file=dumpf)
+    outer_annotes = annotes
     while True:
-        new_annotes = {k:v for k,v in annotes.items()}
-        for ann,nid in annotes.items():
-            print(nid)
-            all_leaves = set(t.get_leaves_ids(nid))
+        new_annotes = {}
+        for ann,nid in outer_annotes.items():
+            all_leaves = t.get_leaves_ids(nid)
+            print("Considering descendents of node {} with annotation {}, with {} total leaves.".format(nid,ann,len(all_leaves)),file=sys.stderr)
             serial = 0
-            labeled = []
+            labeled = set()
             while True:
                 best_score, best_node = evaluate_lineage(t, nid, ignore = labeled, floor = args.floor, maxpath = args.maxpath)
                 if best_score <= 0:
                     break
                 new_annotes[ann + "." + str(serial)] = best_node.id
                 if args.dump != None:
-                    print("{}\t{}\t{}\t{}\t{}".format(ann,nid,ann + "." + str(serial),best_node.id,str(best_score)),file=dumpf)
-                labeled.extend(t.get_leaves_ids(best_node.id))
+                    print("{}\t{}\t{}\t{}\t{}".format(ann,nid,ann + "." + str(serial),best_node.id,str(best_score+args.floor)),file=dumpf)
+                for l in t.get_leaves_ids(best_node.id):
+                    labeled.add(l)
                 if len(labeled) >= len(all_leaves):
                     break
                 serial += 1
                 print(serial)
         if not args.recursive:
             break
-        elif len(new_annotes) == len(annotes):
+        elif len(new_annotes):
             break
         else:
-            annotes = new_annotes
+            annotes.update(new_annotes)
+            outer_annotes = new_annotes
     print("After sublineage annotation, tree contains {} annotated lineages.".format(len(new_annotes)),file=sys.stderr)
     print(new_annotes)
     if args.output != None:
