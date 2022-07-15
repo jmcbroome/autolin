@@ -44,19 +44,19 @@ def get_plin_distance(t,nid):
             return td
     return td
 
-def evaluate_lineage(t, anid, ignore = []):
+def evaluate_lineage(t, anid, ignore = [], floor = 0, cap = 100):
     """Evaluate every descendent branch of lineage a to propose new sublineages.
 
     Args:
         t (MATree): The tree.
         a (str): The lineage annotation node to check.
     """
-    parent_to_grandparent = get_plin_distance(t,anid)
+    parent_to_grandparent = min(get_plin_distance(t,anid),cap)
     candidates = t.depth_first_expansion(anid)
     good_candidates = []
     for c in candidates:
         if not c.is_leaf():
-            cscore = evaluate_candidate(t, anid, c.id, parent_to_grandparent, ignore)
+            cscore = evaluate_candidate(t, anid, c.id, parent_to_grandparent, ignore) - floor
             if cscore > 0:
                 good_candidates.append((cscore,c))
     if len(good_candidates) == 0:
@@ -71,6 +71,8 @@ def argparser():
     parser.add_argument("-o", "--output", help='Path to output protobuf, if desired.',default=None)
     parser.add_argument("-d", "--dump", help="Print proposed sublineages to a table.",default=None)
     parser.add_argument("-l", "--labels", help="Print samples and their associated lowest level lineages to a table.",default=None)
+    parser.add_argument("-f", "--floor", help="Gain of a proposed and current lineage label must be more than this much. Default 0",type=float,default=0)
+    parser.add_argument("-m", "--maxpath", help="Set a maximum path length value when computing sublineage viability. Reduce to allow clades descended from long branches to be further subdivided. Default 100",type=int,default=100)
     args = parser.parse_args()
     return args
 
@@ -96,7 +98,7 @@ def main():
             serial = 0
             labeled = []
             while True:
-                best_score, best_node = evaluate_lineage(t, nid, ignore = labeled)
+                best_score, best_node = evaluate_lineage(t, nid, ignore = labeled, floor = args.floor, cap = args.maxpath)
                 if best_score <= 0:
                     break
                 new_annotes[ann + "." + str(serial)] = best_node.id
@@ -124,10 +126,14 @@ def main():
         labels = {}
         for lid in t.get_leaves_ids():
             for n in t.rsearch(lid,True):
-                if len(n.annotations) > 0:
-                    labels[lid] = n.annotations[0]
-                    break
+                try:
+                    if len(n.annotations) > 0:
+                        labels[lid] = n.annotations[0]
+                        break
+                except IndexError:
+                    continue
         with open(args.labels,'w+') as f:
+            print("sample\tlineage",file=f)
             for k,v in labels.items():
                 print("{}\t{}".format(k,v),file=f)
 
