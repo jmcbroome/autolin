@@ -40,18 +40,21 @@ def get_plin_distance(t,nid):
     td = 0
     for n in t.rsearch(nid,True):
         td += len(n.mutations)
-        if len(n.annotations) > 0 or n.is_root():
-            return td
+        try:
+            if len(n.annotations) > 0 or n.is_root():
+                return td
+        except:
+            continue
     return td
 
-def evaluate_lineage(t, anid, ignore = [], floor = 0, cap = 100):
+def evaluate_lineage(t, anid, ignore = [], floor = 0, maxpath = 100):
     """Evaluate every descendent branch of lineage a to propose new sublineages.
 
     Args:
         t (MATree): The tree.
         a (str): The lineage annotation node to check.
     """
-    parent_to_grandparent = min(get_plin_distance(t,anid),cap)
+    parent_to_grandparent = min(get_plin_distance(t,anid), maxpath)
     candidates = t.depth_first_expansion(anid)
     good_candidates = []
     for c in candidates:
@@ -98,7 +101,7 @@ def main():
             serial = 0
             labeled = []
             while True:
-                best_score, best_node = evaluate_lineage(t, nid, ignore = labeled, floor = args.floor, cap = args.maxpath)
+                best_score, best_node = evaluate_lineage(t, nid, ignore = labeled, floor = args.floor, maxpath = args.maxpath)
                 if best_score <= 0:
                     break
                 new_annotes[ann + "." + str(serial)] = best_node.id
