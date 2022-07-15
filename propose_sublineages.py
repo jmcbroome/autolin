@@ -1,7 +1,7 @@
 import bte
 import sys
 import argparse
-from automate_lineages import label_lineages_serial
+# from automate_lineages import label_lineages_serial
 def simple_node_distance(t, nid, pnid):
     td = 0
     for anc in t.rsearch(nid,True):
@@ -84,11 +84,14 @@ def main():
     t = bte.MATree(args.input)
     if args.clear:
         t.apply_annotations({node.id:[] for node in t.depth_first_expansion()})
-        nlabels = label_lineages_serial(t,count=5)
-        t.apply_annotations(nlabels)
+        # nlabels = label_lineages_serial(t,count=5)
+        # t.apply_annotations(nlabels)
     if args.dump != None:
         dumpf = open(args.dump,'w+')
     annotes = t.dump_annotations()
+    if len(annotes) == 0:
+        print("No lineages found in tree; starting from root.")
+        annotes = {'L':t.root.id}
     # print("Tree contains {} annotated lineages initially.".format(len(annotes)),file=sys.stderr)
     #keep going until the length of the annotation dictionary doesn't change.
     if args.dump != None:
