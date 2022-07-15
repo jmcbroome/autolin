@@ -116,15 +116,14 @@ def main():
                 print(serial)
         if not args.recursive:
             break
-        elif len(new_annotes):
+        elif len(new_annotes) == 0:
             break
         else:
             annotes.update(new_annotes)
             outer_annotes = new_annotes
-    print("After sublineage annotation, tree contains {} annotated lineages.".format(len(new_annotes)),file=sys.stderr)
-    print(new_annotes)
+    print("After sublineage annotation, tree contains {} annotated lineages.".format(len(annotes)),file=sys.stderr)
     if args.output != None:
-        t.apply_annotations({v:[k] for k,v in new_annotes.items()})
+        t.apply_annotations({v:[k] for k,v in annotes.items()})
         t.save_pb(args.output)
     if args.dump != None:
         dumpf.close()
