@@ -23,7 +23,7 @@ a higher level lineage label.
 By itself, this index does not have a stopping condition or a way to evaluate the quality of a proposed sublineage in general. To address this critical weakness, we define the following:
 
 $$
-Sd \over ((Ud/N) + Sd) - Rd \over ((Ud \over N) + Sd + Rd) > M
+Sd \over {Ud \over {N} + Sd} - Rd \over {{Ud \over {N} + Sd + Rd} > M
 $$
 
 This equation evaluates whether a proposed sublineages representation (left) is greater than the theoretical representation of the root/parent lineage against a hypothetical grandparent lineage with Rd (or more) mutations separating them. Generally, these will be large positive values when the sublineage is a much better representative of its samples than the parent lineage, and negative when new sublineage labels represent less than Rd mutations per descendent sample compared to their parent. 
