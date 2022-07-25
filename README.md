@@ -18,7 +18,7 @@ $$
 N * Sd \over{{Ud \over{N}} + Sd}
 $$
 
-where N is the number of descendent samples, Ud is the total path distance to descendent samples, and Sd is the distance from the given node to the tree root. Distance, in the case of a Mutation Annotated Tree, is in number of mutations accumulated. This value increases both as the number of descendents increase and as the relative distance from the root versus the distance to the descendents increases. 
+where N is the number of descendent samples, Ud is the sum of all path distances (e.g. branch length separating a specific sample and the given internal node) to descendent samples, and Sd is the path distance from the given node to the tree root. Distance, in the case of a Mutation Annotated Tree, is in number of mutations accumulated. This value increases both as the number of descendents increase and as the relative distance from the root versus the distance to the descendents increases. 
 
 However, choosing the maximum value of this metric only identifies a single node on the tree as a putative lineage. Once a single best lineage node has been identified, additional lineages are generated in two general ways. First, additional lineages 
 can be generated serially, by ignoring all samples descended from a currently identified lineage and computing the maximum weight among 
