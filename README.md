@@ -34,7 +34,7 @@ $$
 
 This equation evaluates whether a proposed sublineages representation (left) is greater than the theoretical representation of the root/parent lineage against a hypothetical or actual grandparent lineage with Rd (or more) mutations separating them. Generally, these will be large positive values when the sublineage is a much better representative of its samples than the parent lineage, and negative when new sublineage labels represent less than Rd mutations per descendent sample compared to their parent. 
 
-We can increase the minimum value (M) of the equation from the default of 0 and the Rd value from the default of 1. Both of these adjustments will prevent the creation of small, marginal sublineages that are barely better representations than existing labels.
+We can increase the minimum value (M) of the equation from the default of 0, which will prevent the creation of small, marginal sublineages that are barely better representations than existing labels. We can also set a low maximum value for Rd, which will allow lineages descended from very long branches (e.g. Omicron) to be effectively subdivided further, even if the relative parental representation in raw mutations is very high.
 
 With this metric, lineages are generated serially and while disregarding all samples labeled at this level until all remaining candidate nodes fail the inequality. Lineages are then generated hierarchically by individually generating sublineages at each outermost lineage (a lineage with no sublineages) until no candidate nodes pass the inequality. Sublineage proposal is complete when all existing outermost lineages have no descendent nodes with positive representation gains under the given parameters.
 
