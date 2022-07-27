@@ -83,11 +83,8 @@ def get_plin_distance(t,nid):
     td = 0
     for n in t.rsearch(nid,True):
         td += len(n.mutations)
-        try:
-            if len(n.annotations) > 0 or n.is_root():
-                return td
-        except:
-            continue
+        if any([ann == "" for ann in n.annotations]) or n.is_root():
+            return td
     return td
 
 def evaluate_lineage(t, dist_to_root, anid, candidates, sum_and_count, floor = 0, maxpath = 100):
