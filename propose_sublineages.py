@@ -4,9 +4,9 @@ import argparse
 def simple_node_distance(t, nid, pnid):
     td = 0
     for n in t.rsearch(nid,True):
-        td += len(n.mutations)
         if n.id == pnid:
             return td
+        td += len(n.mutations)
     return td
 
 def dists_to_root(tree, node):
