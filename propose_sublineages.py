@@ -2,6 +2,25 @@ import bte
 import sys
 import argparse
 
+def process_mstr(mstr):
+    """Read a mutation string and return the chromosome, location, reference, and alternate alleles.
+    """
+    if ":" in mstr:
+        chro = mstr.split(":")[0]
+        data = mstr.split(":")[1]
+    else:
+        chro = None
+        data = mstr
+    if data[0].isdigit():
+        loc = int(data[:-1])
+        ref = None
+        alt = data[-1]
+    else:
+        loc = int(data[1:-1])
+        ref = data[0]
+        alt = data[-1]
+    return chro, loc, ref, alt
+
 def dists_to_root(tree, node):
     #nodes must be a dict that gets updated on each recursion
     #gives back a dict with all nodes and their respective dist from root
@@ -20,7 +39,14 @@ def dists_to_root(tree, node):
     recursive_dists_to_roots(node)
     return nodes
 
-def get_sum_and_count(rbfs, ignore = set()):
+def get_node_length(node, mutweights = {}):
+    tlen = 0
+    for m in node.mutations:
+        _, loc, _, alt = process_mstr(m)
+        tlen += mutweights.get((loc,alt),1)
+    return tlen
+
+def get_sum_and_count(rbfs, ignore = set(), mutweights = {}):
     # node sum stored in first index and node count stored in second index of each dict entry
     sum_and_count_dict = {}
     leaf_count = 0
@@ -28,7 +54,7 @@ def get_sum_and_count(rbfs, ignore = set()):
         if node.is_leaf():
             leaf_count += 1
             if node.id not in ignore:
-                sum_and_count_dict[node.id] = (len(node.mutations), 1)
+                sum_and_count_dict[node.id] = (get_node_length(node,mutweights), 1)
         else:
             total_count = 0
             total_sum = 0
@@ -45,11 +71,9 @@ def get_sum_and_count(rbfs, ignore = set()):
                 #but for an internal node with two leaf children's path length with respect to its parent, 
                 #its equal to the sum of the two child's path lengths plus 2 times its mutations, since those mutations are shared among 2 samples
                 #this logic applies as we move further up the tree.
-                sum_and_count_dict[node.id] = (total_sum + len(node.mutations) * total_count, total_count)
+                sum_and_count_dict[node.id] = (total_sum + get_node_length(node,mutweights) * total_count, total_count)
 
     return sum_and_count_dict, leaf_count #, leaves
-
-
 
 def evaluate_candidate(a, nid, pgp_d, sum_and_counts, dist_to_root):
     """Evaluate a candidate branch as a putative sublineage.
@@ -79,22 +103,22 @@ def evaluate_candidate(a, nid, pgp_d, sum_and_counts, dist_to_root):
         parent_value = node_count * (pgp_d / (mean_distances_parent + pgp_d))
     return candidate_value - parent_value
 
-def get_plin_distance(t,nid):
+def get_plin_distance(t,nid,mutweights = {}):
     td = 0
     for n in t.rsearch(nid,True):
-        td += len(n.mutations)
+        td += get_node_length(n, mutweights)
         if any([ann != "" for ann in n.annotations]):
             return td
     return td
 
-def evaluate_lineage(t, dist_to_root, anid, candidates, sum_and_count, floor = 0, maxpath = 100):
+def evaluate_lineage(t, dist_to_root, anid, candidates, sum_and_count, floor = 0, maxpath = 100, mutweights = {}):
     """Evaluate every descendent branch of lineage a to propose new sublineages.
 
     Args:
         t (MATree): The tree.
         a (str): The lineage annotation node to check.
     """
-    parent_to_grandparent = min(get_plin_distance(t,anid), maxpath)
+    parent_to_grandparent = min(get_plin_distance(t,anid,mutweights), maxpath)
 
     good_candidates = []
     for c in candidates:
@@ -129,6 +153,23 @@ def get_outer_annotes(t, annotes):
                     skip.add(ann)
     return outer_annotes
 
+def parse_mutweights(mutweights_file):
+    """Parse a mutation weight file.
+    """
+    mutweights = {}
+    with open(mutweights_file) as f:
+        for line in f:
+            line = line.strip()
+            if line == "":
+                continue
+            if line[0] == "#":
+                #ignore comment lines
+                continue
+            parts = line.split()
+            _, loc, _, alt = process_mstr(parts[0])
+            mutweights[(loc, alt)] = float(parts[1])
+    return mutweights
+
 def argparser():
     parser = argparse.ArgumentParser(description="Propose sublineages for existing lineages based on relative representation concept.")
     parser.add_argument("-i", "--input", required=True, help='Path to protobuf to annotate.')
@@ -139,12 +180,17 @@ def argparser():
     parser.add_argument("-l", "--labels", help="Print samples and their associated lowest level lineages to a table.",default=None)
     parser.add_argument("-f", "--floor", help="Gain of a proposed and current lineage label must be more than this much. Default 0",type=float,default=0)
     parser.add_argument("-m", "--maxpath", help="Set a maximum path length value when computing sublineage viability. Reduce to allow clades descended from long branches to be further subdivided. Default 100",type=int,default=100)
+    parser.add_argument("-w", "--mutweights", help="Path to an optional two column space-delimited containing mutations and weights to assign them.",default=None)
     args = parser.parse_args()
     return args
 
 def main():
     args = argparser()
     t = bte.MATree(args.input)
+    mutweights = {}
+    if args.mutweights != None:
+        mutweights = parse_mutweights(args.mutweights)
+    assert len(mutweights) > 0
     if args.dump != None:
         dumpf = open(args.dump,'w+')
     if args.clear:
@@ -177,8 +223,8 @@ def main():
             rbfs = t.breadth_first_expansion(nid, True) #takes the name
             dist_root = dists_to_root(t, t.get_node(nid)) #needs the node object, not just the name
             while True:
-                scdict, leaf_count = get_sum_and_count(rbfs, ignore = labeled)
-                best_score, best_node = evaluate_lineage(t, dist_root, nid, rbfs, scdict, floor = args.floor, maxpath = args.maxpath)
+                scdict, leaf_count = get_sum_and_count(rbfs, ignore = labeled, mutweights = mutweights)
+                best_score, best_node = evaluate_lineage(t, dist_root, nid, rbfs, scdict, floor = args.floor, maxpath = args.maxpath, mutweights = mutweights)
                 if best_score <= 0:
                     break
                 new_annotes[ann + "." + str(serial)] = best_node.id
