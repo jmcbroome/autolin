@@ -3,21 +3,10 @@ import sys
 import argparse
 def simple_node_distance(t, nid, pnid):
     td = 0
-    ancestryList = []
-    
-    par = t.get_node(nid)
-    par = par.parent.id
-    while par != t.root.id:
-        ancestryList.append(par)
-        par = t.get_node(par)
-        par = par.parent.id
-    ancestryList.append(par)  #adds root
-
-    for anc in ancestryList:
-        if anc == pnid:
+    for n in t.rsearch(nid,True):
+        td += len(n.mutations)
+        if n.id == pnid:
             return td
-        anc = t.get_node(anc)
-        td += len(anc.mutations)
     return td
 
 def dists_to_root(tree, node):
