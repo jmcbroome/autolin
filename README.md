@@ -12,7 +12,13 @@ represents some proportion of its genotype- that proportion being the number of 
 proportion of the total number of mutations that sample eventually has. A given node often has many descendents, and it represents some
 part of the genotype of each of them. A good candidate for a lineage label is a node that represents substantial genetic information across many descendents. We can therefore partition the tree with a new lineage at the node with the highest scaled mean genotype representation.
 
-We define the scaled mean representation for a given internal node as $N * Sd \over ((Ud \over N) + Sd)$ where N is the number of descendent samples, Ud is the total path distance to descendent samples, and Sd is the distance from the given node to the tree root. Distance, in the case of a Mutation Annotated Tree, is in number of mutations accumulated. This value increases both as the number of descendents increase and as the relative distance from the root versus the distance to the descendents increases. 
+We define the scaled mean representation for a given internal node as 
+
+$$
+N * Sd \over{{Ud \over{N}} + Sd}
+$$
+
+where N is the number of descendent samples, Ud is the total path distance to descendent samples, and Sd is the distance from the given node to the tree root. Distance, in the case of a Mutation Annotated Tree, is in number of mutations accumulated. This value increases both as the number of descendents increase and as the relative distance from the root versus the distance to the descendents increases. 
 
 However, choosing the maximum value of this metric only identifies a single node on the tree as a putative lineage. Once a single best lineage node has been identified, additional lineages are generated in two general ways. First, additional lineages 
 can be generated serially, by ignoring all samples descended from a currently identified lineage and computing the maximum weight among 
@@ -23,10 +29,10 @@ a higher level lineage label.
 By itself, this index does not have a stopping condition or a way to evaluate the quality of a proposed sublineage in general. To address this critical weakness, we define the following:
 
 $$
-Sd \over ((Ud/N) + Sd) - Rd \over ((Ud \over N) + Sd + Rd) > M
+{N * Sd \over{{Ud \over{N}} + Sd}} - {N * Rd \over{{Ud \over{N}} + Sd + Rd}} > M
 $$
 
-This equation evaluates whether a proposed sublineages representation (left) is greater than the theoretical representation of the root/parent lineage against a hypothetical grandparent lineage with Rd (or more) mutations separating them. Generally, these will be large positive values when the sublineage is a much better representative of its samples than the parent lineage, and negative when new sublineage labels represent less than Rd mutations per descendent sample compared to their parent. 
+This equation evaluates whether a proposed sublineages representation (left) is greater than the theoretical representation of the root/parent lineage against a hypothetical or actual grandparent lineage with Rd (or more) mutations separating them. Generally, these will be large positive values when the sublineage is a much better representative of its samples than the parent lineage, and negative when new sublineage labels represent less than Rd mutations per descendent sample compared to their parent. 
 
 We can increase the minimum value (M) of the equation from the default of 0 and the Rd value from the default of 1. Both of these adjustments will prevent the creation of small, marginal sublineages that are barely better representations than existing labels.
 
