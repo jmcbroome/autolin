@@ -1,13 +1,6 @@
 import bte
 import sys
 import argparse
-def simple_node_distance(t, nid, pnid):
-    td = 0
-    for n in t.rsearch(nid,True):
-        if n.id == pnid:
-            return td
-        td += len(n.mutations)
-    return td
 
 def dists_to_root(tree, node):
     #nodes must be a dict that gets updated on each recursion
