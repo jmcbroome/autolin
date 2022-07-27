@@ -83,7 +83,7 @@ def get_plin_distance(t,nid):
     td = 0
     for n in t.rsearch(nid,True):
         td += len(n.mutations)
-        if any([ann == "" for ann in n.annotations]) or n.is_root():
+        if any([ann != "" for ann in n.annotations]):
             return td
     return td
 
