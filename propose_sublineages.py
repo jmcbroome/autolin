@@ -190,7 +190,6 @@ def main():
     mutweights = {}
     if args.mutweights != None:
         mutweights = parse_mutweights(args.mutweights)
-    assert len(mutweights) > 0
     if args.dump != None:
         dumpf = open(args.dump,'w+')
     if args.clear:
