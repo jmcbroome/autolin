@@ -269,7 +269,7 @@ def main():
         with open(args.labels,'w+') as f:
             print("strain\tlineage",file=f)
             for k,v in labels.items():
-                if v in original_annotations:
+                if v not in original_annotations:
                     print("{}\t{}".format(k,v+"_proposed"),file=f)
                 else:
                     print("{}\t{}".format(k,v),file=f)
