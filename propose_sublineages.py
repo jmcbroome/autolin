@@ -257,8 +257,12 @@ def main():
             for n in t.rsearch(lid,True):
                 try:
                     if len(n.annotations) > 0:
-                        labels[lid] = n.annotations[0]
-                        break
+                        if n.annotations[0] != "":
+                            labels[lid] = n.annotations[0]
+                            break
+                        elif n.annotations[1] != "":
+                            labels[lid] = n.annotations[1]
+                            break
                 except IndexError:
                     continue
         with open(args.labels,'w+') as f:
