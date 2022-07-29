@@ -195,6 +195,7 @@ def main():
     if args.clear:
         t.apply_annotations({node.id:[] for node in t.depth_first_expansion()})
     annotes = t.dump_annotations()
+    original_annotations = set(annotes.keys())
     if len(annotes) == 0:
         print("No lineages found in tree; starting from root.")
         annotes = {'L':t.root.id}
@@ -257,18 +258,21 @@ def main():
             for n in t.rsearch(lid,True):
                 try:
                     if len(n.annotations) > 0:
-                        if n.annotations[0] != "":
-                            labels[lid] = n.annotations[0]
-                            break
-                        elif n.annotations[1] != "":
+                        if n.annotations[1] != "":
                             labels[lid] = n.annotations[1]
+                            break
+                        elif n.annotations[0] != "":
+                            labels[lid] = n.annotations[0]
                             break
                 except IndexError:
                     continue
         with open(args.labels,'w+') as f:
-            print("sample\tlineage",file=f)
+            print("strain\tlineage",file=f)
             for k,v in labels.items():
-                print("{}\t{}".format(k,v),file=f)
+                if v in original_annotations:
+                    print("{}\t{}".format(k,v+"_proposed"),file=f)
+                else:
+                    print("{}\t{}".format(k,v),file=f)
 
 if __name__ == "__main__":
     main()
