@@ -248,11 +248,23 @@ def main():
             outer_annotes = new_annotes
     print("After sublineage annotation, tree contains {} annotated lineages.".format(len(annotes)),file=sys.stderr)
     if args.output != None:
-        t.apply_annotations({v:[k] for k,v in annotes.items()})
+        annd = {}
+        for k,v in annotes.items():
+            if v not in annd:
+                annd[v] = []
+            annd[v].append(k)
+        t.apply_annotations(annd)
         t.save_pb(args.output)
     if args.dump != None:
         dumpf.close()
     if args.labels != None:
+        if args.output == None:
+            annd = {}
+            for k,v in annotes.items():
+                if v not in annd:
+                    annd[v] = []
+                annd[v].append(k)
+            t.apply_annotations(annd)
         labels = {}
         for lid in t.get_leaves_ids():
             for n in t.rsearch(lid,True):
