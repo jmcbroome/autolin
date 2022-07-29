@@ -72,7 +72,6 @@ def get_sum_and_count(rbfs, ignore = set(), mutweights = {}):
                 #its equal to the sum of the two child's path lengths plus 2 times its mutations, since those mutations are shared among 2 samples
                 #this logic applies as we move further up the tree.
                 sum_and_count_dict[node.id] = (total_sum + get_node_length(node,mutweights) * total_count, total_count)
-
     return sum_and_count_dict, leaf_count #, leaves
 
 def evaluate_candidate(a, nid, pgp_d, sum_and_counts, dist_to_root):
@@ -203,19 +202,14 @@ def main():
         print("{} annotations found in the tree; identifying candidates for subdivision.".format(len(annotes)))
         annotes = get_outer_annotes(t, annotes)
         print("{} outer annotations found in the tree; identifying sublineages.".format(len(annotes)))
-    # print("Tree contains {} annotated lineages initially.".format(len(annotes)),file=sys.stderr)
+    print("Tree contains {} annotated lineages initially.".format(len(annotes)),file=sys.stderr)
     #keep going until the length of the annotation dictionary doesn't change.
     if args.dump != None:
         print("parent\tparent_nid\tproposed_sublineage\tproposed_sublineage_nid\tproposed_sublineage_score",file=dumpf)
     outer_annotes = annotes
-
-    #call reverse BFS and save to dict
-    # print("HELLO")
-    # rbfs = t.breadth_first_expansion(t.root.id, True)
-    # dist_root = dists_to_root(t, t.root)
-    # scdict, leaf_count = get_sum_and_count(rbfs)
-    # print("Leaf_count: ", leaf_count)
+    level = 1
     while True:
+        print("Level: ",level)
         new_annotes = {}
         for ann,nid in outer_annotes.items():
             serial = 0
@@ -229,6 +223,7 @@ def main():
                     break
                 new_annotes[ann + "." + str(serial)] = best_node.id
                 if args.dump != None:
+                    print("ADDING LINEAGES FROM LEVEL {}".format(level))
                     print("{}\t{}\t{}\t{}\t{}".format(ann,nid,ann + "." + str(serial),best_node.id,str(best_score+args.floor)),file=dumpf)
 
                 for l in t.get_leaves_ids(best_node.id):   # change this
@@ -237,7 +232,7 @@ def main():
                 if len(labeled) >= leaf_count:
                     break
                 serial += 1
-                # print(serial)
+                print("Annotated lineage", serial)
         if not args.recursive:
             annotes.update(new_annotes)
             break
@@ -246,13 +241,17 @@ def main():
         else:
             annotes.update(new_annotes)
             outer_annotes = new_annotes
+            level += 1
     print("After sublineage annotation, tree contains {} annotated lineages.".format(len(annotes)),file=sys.stderr)
     if args.output != None:
         annd = {}
         for k,v in annotes.items():
             if v not in annd:
                 annd[v] = []
-            annd[v].append(k)
+            if len(annd[v]) == 2:
+                annd[v][1] = k
+            else:
+                annd[v].append(k)
         t.apply_annotations(annd)
         t.save_pb(args.output)
     if args.dump != None:
@@ -263,6 +262,9 @@ def main():
             for k,v in annotes.items():
                 if v not in annd:
                     annd[v] = []
+            if len(annd[v]) == 2:
+                annd[v][1] = k
+            else:
                 annd[v].append(k)
             t.apply_annotations(annd)
         labels = {}
