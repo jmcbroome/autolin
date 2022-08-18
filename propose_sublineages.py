@@ -203,6 +203,7 @@ def main():
         annotes = get_outer_annotes(t, annotes)
         print("{} outer annotations found in the tree; identifying sublineages.".format(len(annotes)))
     print("Tree contains {} annotated lineages initially.".format(len(annotes)),file=sys.stderr)
+    letters_used = set(['A','B'])
     #keep going until the length of the annotation dictionary doesn't change.
     if args.dump != None:
         print("parent\tparent_nid\tproposed_sublineage\tproposed_sublineage_nid\tproposed_sublineage_score",file=dumpf)
@@ -221,10 +222,13 @@ def main():
                 best_score, best_node = evaluate_lineage(t, dist_root, nid, rbfs, scdict, floor = args.floor, maxpath = args.maxpath, mutweights = mutweights)
                 if best_score <= 0:
                     break
-                new_annotes[ann + "." + str(serial)] = best_node.id
+                newname = ann + "." + str(serial)
+                if "." in ann and ann not in ['A','B']:
+                    letters_used.add(newname.split(".")[0][-1])
+                new_annotes[newname] = best_node.id
                 if args.dump != None:
                     print("ADDING LINEAGES FROM LEVEL {}".format(level))
-                    print("{}\t{}\t{}\t{}\t{}".format(ann,nid,ann + "." + str(serial),best_node.id,str(best_score+args.floor)),file=dumpf)
+                    print("{}\t{}\t{}\t{}\t{}".format(ann,nid,newname,best_node.id,str(best_score+args.floor)),file=dumpf)
 
                 for l in t.get_leaves_ids(best_node.id):   # change this
                     labeled.add(l)
@@ -268,25 +272,14 @@ def main():
                 annd[v].append(k)
             t.apply_annotations(annd)
         labels = {}
-        for lid in t.get_leaves_ids():
-            for n in t.rsearch(lid,True):
-                try:
-                    if len(n.annotations) > 0:
-                        if n.annotations[1] != "":
-                            labels[lid] = n.annotations[1]
-                            break
-                        elif n.annotations[0] != "":
-                            labels[lid] = n.annotations[0]
-                            break
-                except IndexError:
-                    continue
+        for ann, nid in annotes.items():
+            if ann not in original_annotations:
+                for l in t.get_leaves_ids(nid):
+                    labels[l] = ann
         with open(args.labels,'w+') as f:
             print("strain\tlineage",file=f)
             for k,v in labels.items():
-                if v not in original_annotations:
-                    print("{}\t{}".format(k,v+"_proposed"),file=f)
-                else:
-                    print("{}\t{}".format(k,v),file=f)
+                print("{}\t{}".format(k,v),file=f)
 
 if __name__ == "__main__":
     main()
