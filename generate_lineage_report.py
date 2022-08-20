@@ -66,15 +66,6 @@ def fill_output_table(t,pdf,mdf):
     pdf = pdf.rename({0:'EarliestParent',1:'LatestParent',2:'EarliestChild',3:'LatestChild'},axis=1)
     pdf['LogScore'] = np.log10(pdf.proposed_sublineage_score)
     pdf["Successive"] = pdf.apply(is_successive,axis=1)
-    # print("Checking geography")
-    # def is_founder(row):
-    #     try:
-    #         parent_regions = mdf.loc[t.get_leaves_ids(row.parent_nid)].country.value_counts()
-    #         child_regions = mdf.loc[t.get_leaves_ids(row.proposed_sublineage_nid)].country.value_counts()
-    #         return child_regions.index[0] in parent_regions.index
-    #     except:
-    #         return False
-    # pdf['IsFounder'] = pdf.apply(is_founder,axis=1)
     print("Doing international")
     def is_international(row):
         try:
@@ -101,6 +92,15 @@ def fill_output_table(t,pdf,mdf):
         url += ']'
         return url
     pdf['Links'] = pdf.proposed_sublineage_nid.apply(generate_url)
+    def get_separating_mutations(row):
+        hapstring = []
+        for n in t.rsearch(row.proposed_sublineage_nid,True):
+            if n.id == row.parent_nid:
+                break
+            for m in n.mutations:
+                hapstring.append(m)
+        return ">".join(hapstring)
+    pdf['Mutations'] = pdf.apply(get_separating_mutations,axis=1)
     return pdf
 
 def main():
