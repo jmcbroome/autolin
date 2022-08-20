@@ -27,21 +27,27 @@ def is_successive(row):
 
 def fill_output_table(t,pdf,mdf):
     mdf.set_index('strain',inplace=True)
-    def sublineage_size(row):
+    def parent_lineage_size(row):
         samples = t.get_leaves_ids(row.parent_nid)
+        return len(samples)
+    def sublineage_size(row):
         subsamples = t.get_leaves_ids(row.proposed_sublineage_nid)
-        return len(subsamples)/len(samples)
+        return len(subsamples)
     print("Computing sublineage percent")
-    pdf['SublineagePercent'] = pdf.apply(sublineage_size,axis=1)
-    def parsimony_percent(row):
+    pdf['ParentLineageSize'] = pdf.apply(parent_lineage_size,axis=1)
+    pdf['SublineageSize'] = pdf.apply(sublineage_size,axis=1)
+    pdf['SublineagePercent'] = pdf.SublineageSize/pdf.ParentLineageSize
+    def parsimony_parent(row):
         parent_parsimony = sum([len(n.mutations) for n in t.depth_first_expansion(row.parent_nid)])
+        return parent_parsimony
+    def parsimony_child(row):
         child_parsimony = sum([len(n.mutations) for n in t.depth_first_expansion(row.proposed_sublineage_nid)])
-        if parent_parsimony == 0:
-            return np.nan
-        else:
-            return child_parsimony/parent_parsimony
+        return child_parsimony
     print("Computing parsimony percent")
-    pdf['ParsimonyPercent'] = pdf.apply(parsimony_percent,axis=1)
+    pdf['ParentParsimony'] = pdf.apply(parsimony_parent,axis=1)
+    pdf['SublineageParsimony'] = pdf.apply(parsimony_child,axis=1)
+    pdf['ParsimonyPercent'] = pdf.SublineageParsimony/pdf.ParentParsimony
+    mdf['date'] = mdf.date.apply(get_date)
     def get_start_ends(row):
         parent_samples = set(t.get_leaves_ids(row.parent_nid))
         child_samples = set(t.get_leaves_ids(row.proposed_sublineage_nid))
@@ -60,16 +66,15 @@ def fill_output_table(t,pdf,mdf):
     pdf = pdf.rename({0:'EarliestParent',1:'LatestParent',2:'EarliestChild',3:'LatestChild'},axis=1)
     pdf['LogScore'] = np.log10(pdf.proposed_sublineage_score)
     pdf["Successive"] = pdf.apply(is_successive,axis=1)
-    mdf['date'] = mdf.date.apply(get_date)
-    print("Checking geography")
-    def is_founder(row):
-        try:
-            parent_regions = mdf.loc[t.get_leaves_ids(row.parent_nid)].country.value_counts()
-            child_regions = mdf.loc[t.get_leaves_ids(row.proposed_sublineage_nid)].country.value_counts()
-            return child_regions.index[0] in parent_regions.index
-        except:
-            return False
-    pdf['IsFounder'] = pdf.apply(is_founder,axis=1)
+    # print("Checking geography")
+    # def is_founder(row):
+    #     try:
+    #         parent_regions = mdf.loc[t.get_leaves_ids(row.parent_nid)].country.value_counts()
+    #         child_regions = mdf.loc[t.get_leaves_ids(row.proposed_sublineage_nid)].country.value_counts()
+    #         return child_regions.index[0] in parent_regions.index
+    #     except:
+    #         return False
+    # pdf['IsFounder'] = pdf.apply(is_founder,axis=1)
     print("Doing international")
     def is_international(row):
         try:
@@ -77,6 +82,12 @@ def fill_output_table(t,pdf,mdf):
         except:
             return False
     pdf['International'] = pdf.apply(is_international, axis=1)
+    def host_jump(row):
+        try:
+            return mdf.loc[t.get_leaves_ids(row.proposed_sublineage_nid)].host.nunique() > 1
+        except:
+            return False
+    pdf['HostJump'] = pdf.apply(host_jump,axis=1)
     def generate_url(nid):
         mset = t.get_haplotype(nid)
         url = "https://cov-spectrum.org/explore/World/AllSamples/AllTimes/variants?variantQuery=[" + str(len(mset)) + "-of:"
