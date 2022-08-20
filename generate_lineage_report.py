@@ -97,8 +97,7 @@ def fill_output_table(t,pdf,mdf):
         for n in t.rsearch(row.proposed_sublineage_nid,True):
             if n.id == row.parent_nid:
                 break
-            for m in n.mutations:
-                hapstring.append(m)
+            hapstring.append(",".join(n.mutations))
         return ">".join(hapstring)
     pdf['Mutations'] = pdf.apply(get_separating_mutations,axis=1)
     return pdf
