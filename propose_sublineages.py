@@ -169,15 +169,37 @@ def argparser():
     parser.add_argument("-t", "--distinction", help="Require that lineage proposes have at least i mutations distinguishing them from the parent lineage or root.",type=int,default=1)
     parser.add_argument("-m", "--minsamples", help="Require that each lineage proposal describe at least f samples.", type=int, default=10)
     parser.add_argument("-w", "--mutweights", help="Path to an optional two column space-delimited containing mutations and weights to assign them.",default=None)
+    parser.add_argument("-g", "--gene", help='Consider only mutations in the indicated gene. Requires that --gtf and --reference be set.', default=None)
+    parser.add_argument("-s", "--missense", action='store_true', help="Consider only missense mutations. Requires that --gtf and --reference be set.")
+    parser.add_argument("--gtf", help="Path to a gtf file to apply translation. Use with --reference.")
+    parser.add_argument("--reference", help='Path to a reference fasta file to apply translation. Use with --gtf.')
     args = parser.parse_args()
     return args
 
 def main():
     args = argparser()
     t = bte.MATree(args.input)
+    if args.gtf != None and args.reference != None:
+        print("Performing tree translation and removing mutations not included in selection.")
+        print("Initial tree parsimony:", t.get_parsimony_score())
+        translation = t.translate(fasta_file=args.reference,gtf_file=args.gtf)
+        to_use = {}
+        for nid, aav in translation.items():
+            for_nid = []
+            for aa in aav:
+                if args.missense and aa.is_synonymous():
+                    continue
+                if args.gene != None:
+                    if aa.gene != args.gene:
+                        continue
+                for_nid.append(aa.nuc)
+            to_use[nid] = for_nid
+        t.apply_mutations(to_use)
+        print("Mutations filtered; new tree parsimony:", t.get_parsimony_score())
     mutweights = {}
     if args.mutweights != None:
         mutweights = parse_mutweights(args.mutweights)
+        
     if args.dump != None:
         dumpf = open(args.dump,'w+')
     if args.clear:
