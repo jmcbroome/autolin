@@ -21,6 +21,363 @@ def process_mstr(mstr):
         alt = data[-1]
     return chro, loc, ref, alt
 
+def pango_lineage_naming(annote, ser, alias_key):   # may need to pass in a list of all lineage names to compare and create an accurate new name 
+    # mostly for adding to existing pango lineage names
+    # no hardcoding names. must be modular since it will be expanded for other disease
+
+    # 1 and 15 for new parameters
+
+
+    ###### should aim to have # of decimal places that cause increment of letter to be passed into the function (its 4 normally)
+    ###### this should also mean that the incrementing algorithm should be in a loop that runs with less hard-coded steps, have to think about this more
+
+
+
+    # create alias that could be on the dump file that tells you the summary alias. 
+    # "BD" = "B.1.1.529.1.17.2"  for example. just so no information is lost and it can be translated back from summary.
+
+    # following pango naming rules except for recombination lineages (X)
+
+    # omitted "I", "O", "X" per pango guidelines (section 2.1.b)
+
+    
+    letters = {"0":"A", "1":"B", "2":"C", "3":"D", "4":"E", "5":"F", "6":"G", "7":"H", "8":"J", "9":"K", "10":"L", "11":"M", "12":"N", "13":"P",
+    "14":"Q", "15":"R", "16":"S", "17":"T", "18":"U", "19":"V", "20":"W", "21":"Y", "22":"Z"}
+
+
+    #Throw Away Letters = "I", "O", "X"
+    throw_away_letters = []
+    throw_away_letters.append(ord("X"))
+    throw_away_letters.append(ord("I"))
+    throw_away_letters.append(ord("O"))
+
+    # encountering bug in dump file where some names of lineages have numbers in front such as 20G.13.0.0 or 21B (Kappa).2 or XB.0
+    # thinking this may be involving how im incrementing letters in ascii and converting back.
+    # this could possibly be due to inconsistency in the pango naming algorithm logic. Will change this.
+
+    proposed_name = annote + "." + str(ser)
+    descendant_count = proposed_name.count('.')
+    alias = proposed_name
+    proposed_name = list(proposed_name)
+    
+
+    # if (proposed_name[0] == 'L') and (proposed_name[1] == '.'):
+    #     numb = proposed_name[2]   #doesnt account for double digit numbers    must fix this
+
+    #     if numb in letters:
+    #         letter = letters[numb]
+    #         # print("LENG: " + str(len(proposed_name))
+    #         proposed_name.pop(0)
+    #         proposed_name.pop(1)
+    #         proposed_name.pop(2)
+    #         proposed_name.append(letter)
+
+
+    #     # ###### maybe shouldnt be in else
+    #     # else:  #number is bigger than 22   number%22 until less than 22? that is remainder that will be converted into letter
+    #     #     remain = 23
+    #     #     while (remain > 22):
+    #     #         remain = numb%22
+    #     # #####
+
+    #could be if descendant_count >= inputted descendant depth number
+    if descendant_count >= 4:  #too many periods for descendants therefore should increment the alphabetical name up 1 letter
+
+        # Question:  what does A.1.3.4.28 turn into? B.28? this would lose the 1.3.4 information since its not 1.1.1  = bc it is the same however alias key will give more info
+
+    #     #if [0] is Z and [1] is '.', make AA
+    #     # if [0] is A and [1] is Z, make BA and so on
+    #     # if [1] is not '.' (meaning its a letter), increment second letter (unless Z then do AA)
+    #     # if [0] is Z and [1] is Z, next is AAA
+        if (proposed_name[1] == '.'):
+            # regular increment to next letter with descendant number after  ex: A.1.1.1.28 -> B.28
+            if ((proposed_name[0] != 'Z') and (proposed_name[0] != 'z')):
+                # print("Proposed name0: ", proposed_name)
+                letter = ord(proposed_name[0])
+                if letter in throw_away_letters:
+                    proposed_name[0] = chr(letter + 2)
+                else:
+                    proposed_name[0] = chr(letter + 1)
+                dot_count = 0
+                count = 0
+                # desc_numb = 0
+                for char in proposed_name:
+                    count += 1
+                    if char == '.':
+                        dot_count += 1
+                    if dot_count >= 4:
+                        # desc_numb = proposed_name[count+1]
+                        break
+
+                new_prop_name = []
+                # print("Proposed name1: ", proposed_name)
+                for i in range(0, 1):  # wouldn't account for numbers after 4th decimal place. ####Must fix this.#####
+                    # print("I: ", i, " proposed_name[i] = ", proposed_name[i])
+                    new_prop_name.append(proposed_name[i])    #error on full data set
+                # print("Proposed name2: ", proposed_name)
+                proposed_name = ''.join(new_prop_name + proposed_name[count-1:])
+                # print("Proposed name2: ", proposed_name)
+                # for i in range(1, count - 1):
+                #     proposed_name.pop(i)
+                alias_key[proposed_name] = alias
+                
+            # if [0] is Z and [1] is '.', make AA  ex: Z.1.1.1.53 -> AA.53
+            elif ((proposed_name[0] == 'Z') or (proposed_name[0] == 'z')):  # if first letter is already Z
+                dot_count = 0
+                count = 0
+                # desc_numb = 0
+                for char in proposed_name:
+                    count += 1
+                    if char == '.':
+                        dot_count += 1
+                    if dot_count >= 4:
+                        # desc_numb = proposed_name[count+1]
+                        break
+                            
+                for i in range(0, count - 1):
+                    proposed_name.pop(i)
+                proposed_name.insert(0, "A")   
+                proposed_name.insert(0, "A")  #should now be AA.x   where x is some descendant number 
+                alias_key[proposed_name] = alias
+
+        # if [0] is A and [1] is Z, make BA and so on
+        else:  # first period is not in 1st index. dealing with at least a double character lineage name
+            if (proposed_name[2] == '.'):
+                # if [0] is some letter and [1] is not Z and [2] is '.' (2 letters) increment [1] to next letter. ex: BC.1.1.1.33 -> BD.33
+                if ((proposed_name[1] != 'Z') and (proposed_name[1] != 'z')):
+                    # print("Proposed name0: ", proposed_name)   # at beginning of 
+                    letter = ord(proposed_name[1])
+                    if letter in throw_away_letters:
+                        proposed_name[1] = chr(letter + 2)
+                    else:
+                        proposed_name[1] = chr(letter + 1)
+                    dot_count = 0
+                    count = 0
+                    # desc_numb = 0
+                    for char in proposed_name:
+                        count += 1
+                        if char == '.':
+                            dot_count += 1
+                        if dot_count >= 4:
+                            # desc_numb = proposed_name[count+1]
+                            break
+                    # print("Proposed name: ", proposed_name)
+                    new_prop_name = []
+                    for i in range(0, 2):
+                        # print("I: ", i, " proposed_name[i] = ", proposed_name[i])
+                        new_prop_name.append(proposed_name[i])    #error on full data set
+                    # print("Proposed name2: ", proposed_name)
+                    proposed_name = ''.join(new_prop_name + proposed_name[count-1:])
+                    # print("Proposed name3: ", proposed_name)
+                    alias_key[proposed_name] = alias
+                
+                # if [0] is some letter and [1] is Z and [2] is '.' (2 letters) increment [1] to next letter unless already Z.  ex: BZ.1.1.1.51 -> CA.51
+                elif ((proposed_name[1] == 'Z') or (proposed_name[1] == 'z')) and ((proposed_name[0] != 'Z') and (proposed_name[0] != 'z')):  # if first letter is already Z
+                    letter = ord(proposed_name[0])
+                    if letter in throw_away_letters:
+                        proposed_name[0] = chr(letter + 2)
+                    else:
+                        proposed_name[0] = chr(letter + 1)
+                    
+                    dot_count = 0
+                    count = 0
+                    # desc_numb = 0
+                    for char in proposed_name:
+                        count += 1
+                        if char == '.':
+                            dot_count += 1
+                        if dot_count >= 4:
+                            # desc_numb = proposed_name[count+1]
+                            break
+
+                    for i in range(1, count - 1):
+                        proposed_name.pop(i)
+                    proposed_name.insert(1, "A")   #should now be XA.x   where x is some descendant number and X is some letter
+                    alias_key[proposed_name] = alias
+
+                # if [0] is Z and [1] is Z and [2] is '.' (2 letters) change into AAA.  ex: ZZ.1.1.1.51 -> AAA.51
+                elif ((proposed_name[1] == 'Z') or (proposed_name[1] == 'z')) and ((proposed_name[0] == 'Z') or (proposed_name[0] == 'z')):  # if first letter is already Z
+                    dot_count = 0
+                    count = 0
+                    # desc_numb = 0
+                    for char in proposed_name:
+                        count += 1
+                        if char == '.':
+                            dot_count += 1
+                        if dot_count >= 4:
+                            # desc_numb = proposed_name[count+1]
+                            break
+
+                    for i in range(0, count - 1):
+                        proposed_name.pop(i)
+                    proposed_name.insert(0, "A")
+                    proposed_name.insert(0, "A")
+                    proposed_name.insert(0, "A")   #should now be XA.x   where x is some descendant number and X is some letter
+                    alias_key[proposed_name] = alias
+
+            elif (proposed_name[3] == '.'):
+                # if [0] is some letter and [1] is some letter and [2] is not Z and [3] is '.' (3 letters) increment [2].  ex: AAA.2.1.3.24 -> AAB.24
+                if (proposed_name[2] != 'Z') and (proposed_name[2] != 'z'):
+
+                    letter = ord(proposed_name[2])
+                    if letter in throw_away_letters:
+                        proposed_name[2] = chr(letter + 2)
+                    else:
+                        proposed_name[2] = chr(letter + 1)
+                    # proposed_name[0] = chr(letter + 1)
+                    dot_count = 0
+                    count = 0
+                    # desc_numb = 0
+                    for char in proposed_name:
+                        count += 1
+                        if char == '.':
+                            dot_count += 1
+                        if dot_count >= 4:
+                            # desc_numb = proposed_name[count+1]
+                            break
+                    
+                    new_prop_name = []
+                    # print("Proposed name1: ", proposed_name)
+                    for i in range(0, 3):  # wouldn't account for numbers after 4th decimal place. ####Must fix this.#####
+                        # print("I: ", i, " proposed_name[i] = ", proposed_name[i])
+                        new_prop_name.append(proposed_name[i])    #error on full data set
+                    # print("Proposed name2: ", proposed_name)
+                    proposed_name = ''.join(new_prop_name + proposed_name[count-1:])
+                    print("PROP NAME: ", proposed_name)
+                    # for i in range(3, count - 1):
+                    #     proposed_name.pop(i)
+                    alias_key[proposed_name] = alias
+                
+                # if [0] is not Z and [1] is not Z and [2] is Z and [3] is '.' (3 letters) increment [2].  ex: AAZ.1.2.2.27 -> ABA.27
+                elif ((proposed_name[2] == 'Z') or (proposed_name[2] == 'z')) and ((proposed_name[1] != 'Z') and (proposed_name[1] != 'z')):
+                    letter = ord(proposed_name[1])
+                    if letter in throw_away_letters:
+                        proposed_name[1] = chr(letter + 2)
+                    else:
+                        proposed_name[1] = chr(letter + 1)
+                    dot_count = 0
+                    count = 0
+                    # desc_numb = 0
+                    for char in proposed_name:
+                        count += 1
+                        if char == '.':
+                            dot_count += 1
+                        if dot_count >= 4:
+                            # desc_numb = proposed_name[count+1]
+                            break
+                    for i in range(2, count - 1):
+                        proposed_name.pop(i)
+                    proposed_name.insert(2, "A")
+                    alias_key[proposed_name] = alias
+
+                # if [0] is not Z and [1] is Z and [2] is Z and [3] is '.' (3 letters) increment [2].  ex: AZZ.1.2.2.27 -> BAA.27
+                elif ((proposed_name[2] == 'Z') or (proposed_name[2] == 'z')) and ((proposed_name[1] == 'Z') or (proposed_name[1] == 'z')) and ((proposed_name[0] != 'Z') and (proposed_name[0] != 'z')):
+                    letter = ord(proposed_name[0])
+                    if letter in throw_away_letters:
+                        proposed_name[0] = chr(letter + 2)
+                    else:
+                        proposed_name[0] = chr(letter + 1)
+                    dot_count = 0
+                    count = 0
+                    # desc_numb = 0
+                    for char in proposed_name:
+                        count += 1
+                        if char == '.':
+                            dot_count += 1
+                        if dot_count >= 4:
+                            # desc_numb = proposed_name[count+1]
+                            break
+                    for i in range(1, count - 1):
+                        proposed_name.pop(i)
+                    proposed_name.insert(1, "A")
+                    proposed_name.insert(2, "A")
+                    alias_key[proposed_name] = alias
+
+
+            # if (proposed_name != 'Z') or (proposed_name != 'z'):
+
+            #     proposed_name[0] = chr(letter + 1)
+            #     str(proposed_name)
+            # else:
+            #     proposed_name.insert(1, 'A')
+    
+        ### UNCOMMENT START HERE 
+        ##### new faster method that would allow descendant depth number to be inputted as any number (not just 4)
+        # ####################################################
+        # #working on more condensed version of naming algorithm
+        # # must figure out where first decimal place is:
+        # char = ''
+        # count = 0
+        # beginning_letters = []
+        # while (proposed_name[char] != '.'):
+        #     char = proposed_name[count]
+        #     beginning_letters.append(char)
+        #     count += 1
+        # # at this point the count is where the decimal place is
+
+        # #algorithm takes place here:
+        
+        # #smallest (most specific) character
+
+        # # for i in range(1, len(beginning_letters)):
+        
+        # # k = -i
+        # k = -1
+
+        # # while ((beginning_letters[k] != 'Z') and (beginning_letters[k] != 'z')):   #when to stop? when the current letter is not z anymore.   # wb ZCZ -> ZDA
+        # for i in range(1, len(beginning_letters)):   # figure out break condition or maybe this works fine
+
+        #     if (beginning_letters[k] == 'Z') or (beginning_letters[k] == 'z'):
+        #         if (len(beginning_letters) > k*(-1)):   #if current letter is at least not the last letter
+        #             # if (beginning_letters[-2]
+        #             # k = -i -1
+        #             k -= 1
+        #             # beginning_letters[-i - 1]
+
+
+        #         else:
+                    
+
+        #             continue
+
+        #     else:   # increment normal
+
+        #         letter = ord(beginning_letters[k])
+
+        #         beginning_letters[k] = chr(letter + 1)
+
+        #         # beginning_letters is incremented and ready now.
+        #         break
+
+
+        # # dot_count = 0
+        # # count = 0
+        # # # desc_numb = 0
+        # # for char in proposed_name:
+        # #     count += 1
+        # #     if char == '.':
+        # #         dot_count += 1
+        # #     if dot_count >= 4:
+        # #         # desc_numb = proposed_name[count+1]
+        # #         break
+
+        # # for i in range(1, count - 1):
+        # #     proposed_name.pop(i)
+        # # alias_key[proposed_name] = alias
+
+
+    
+        # len(beginning_letters)
+        
+        # ##################################################
+        #### UNCOMMENT END HERE
+
+    proposed_name = ''.join(proposed_name)
+    # print("name: ", proposed_name)
+    alias_key[proposed_name] = alias
+    return str(proposed_name), alias_key
+
+
 def dists_to_root(tree, node, mutweights = {}):
     #nodes must be a dict that gets updated on each recursion
     #gives back a dict with all nodes and their respective dist from root
@@ -219,6 +576,7 @@ def main():
         print("parent\tparent_nid\tproposed_sublineage\tproposed_sublineage_nid\tproposed_sublineage_score",file=dumpf)
     outer_annotes = annotes
     level = 1
+    alias_key = {}
     while True:
         print("Level: ",level)
         new_annotes = {}
@@ -236,7 +594,9 @@ def main():
                 new_annotes[newname] = best_node.id
                 if args.dump != None:
                     print("ADDING LINEAGES FROM LEVEL {}".format(level))
-                    print("{}\t{}\t{}\t{}\t{}".format(ann,nid,newname,best_node.id,str(best_score)),file=dumpf)
+                    name, alias_key = pango_lineage_naming(ann, serial, alias_key)
+                    print("{}\t{}\t{}\t{}\t{}".format(name,nid,name + '.' + str(serial),best_node.id,str(best_score)),file=dumpf)
+                    # print("{}\t{}\t{}\t{}\t{}".format(ann,nid,newname,best_node.id,str(best_score)),file=dumpf)
 
                 for l in t.get_leaves_ids(best_node.id):
                     labeled.add(l)
