@@ -171,6 +171,7 @@ def argparser():
     parser.add_argument("-w", "--mutweights", help="Path to an optional two column space-delimited containing mutations and weights to assign them.",default=None)
     parser.add_argument("-g", "--gene", help='Consider only mutations in the indicated gene. Requires that --gtf and --reference be set.', default=None)
     parser.add_argument("-s", "--missense", action='store_true', help="Consider only missense mutations. Requires that --gtf and --reference be set.")
+    parser.add_argument("-f", "--floor", help="Minimum score value to report a lineage. Default 0", type=float,default=0)
     parser.add_argument("--gtf", help="Path to a gtf file to apply translation. Use with --reference.")
     parser.add_argument("--reference", help='Path to a reference fasta file to apply translation. Use with --gtf.')
     args = parser.parse_args()
@@ -179,6 +180,7 @@ def argparser():
 def main():
     args = argparser()
     t = bte.MATree(args.input)
+    ##TODO: Figure out a better solution (building a mutweight vector?) based on translation instead of editing the tree
     if args.gtf != None and args.reference != None:
         print("Performing tree translation and removing mutations not included in selection.")
         print("Initial tree parsimony:", t.get_parsimony_score())
@@ -231,7 +233,7 @@ def main():
             while True:
                 scdict, leaf_count = get_sum_and_count(rbfs, ignore = labeled, mutweights = mutweights)
                 best_score, best_node = evaluate_lineage(t, dist_root, nid, rbfs, scdict, args.minsamples, args.distinction, used_nodes)
-                if best_score <= 0:
+                if best_score <= args.floor:
                     break
                 newname = ann + "." + str(serial)
                 for anc in t.rsearch(best_node.id,True):
