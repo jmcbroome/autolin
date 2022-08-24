@@ -101,7 +101,7 @@ def get_plin_distance(t,nid,mutweights = {}):
             return td
     return td
 
-def evaluate_lineage(t, dist_to_root, anid, candidates, sum_and_count, minimum_size = 0, minimum_distinction = 0):
+def evaluate_lineage(t, dist_to_root, anid, candidates, sum_and_count, minimum_size = 0, minimum_distinction = 0, banned = set()):
     """Evaluate every descendent branch of lineage a to propose new sublineages.
 
     Args:
@@ -110,7 +110,7 @@ def evaluate_lineage(t, dist_to_root, anid, candidates, sum_and_count, minimum_s
     """
     good_candidates = []
     for c in candidates:
-        if not c.is_leaf():
+        if not c.is_leaf() and c.id not in banned:
             cscore = evaluate_candidate(anid, c.id, sum_and_count, dist_to_root,minimum_size,minimum_distinction)
             if cscore > 0:
                 good_candidates.append((cscore,c))
@@ -222,6 +222,7 @@ def main():
     while True:
         print("Level: ",level)
         new_annotes = {}
+        used_nodes = set()
         for ann,nid in outer_annotes.items():
             serial = 0
             labeled = set()
@@ -229,15 +230,16 @@ def main():
             dist_root = dists_to_root(t, t.get_node(nid), mutweights) #needs the node object, not just the name
             while True:
                 scdict, leaf_count = get_sum_and_count(rbfs, ignore = labeled, mutweights = mutweights)
-                best_score, best_node = evaluate_lineage(t, dist_root, nid, rbfs, scdict, args.minsamples, args.distinction)
+                best_score, best_node = evaluate_lineage(t, dist_root, nid, rbfs, scdict, args.minsamples, args.distinction, used_nodes)
                 if best_score <= 0:
                     break
                 newname = ann + "." + str(serial)
+                for anc in t.rsearch(best_node.id,True):
+                    used_nodes.add(anc.id)
                 new_annotes[newname] = best_node.id
                 if args.dump != None:
                     print("ADDING LINEAGES FROM LEVEL {}".format(level))
                     print("{}\t{}\t{}\t{}\t{}".format(ann,nid,newname,best_node.id,str(best_score)),file=dumpf)
-
                 for l in t.get_leaves_ids(best_node.id):
                     labeled.add(l)
                 
@@ -264,6 +266,8 @@ def main():
                 annd[v][1] = k
             else:
                 annd[v].append(k)
+        #reload the original tree to restore all edits.
+        t = bte.MATree(args.input)
         t.apply_annotations(annd)
         t.save_pb(args.output)
     if args.dump != None:
