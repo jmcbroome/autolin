@@ -1,3 +1,4 @@
+from curses.ascii import isdigit
 import bte
 import sys
 import argparse
@@ -26,6 +27,12 @@ def pango_lineage_naming(annote, ser, alias_key):   # may need to pass in a list
     # no hardcoding names. must be modular since it will be expanded for other disease
 
     # 1 and 15 for new parameters
+    # print("ANNOTE: ", annote)
+
+    #QUESTION: should greek letters be converted to pango lineage naming convention? What would they be incremented to? 
+
+    #should change name even if it doesnt have 4 levels of descendants if the name is already incorrect. Check for throw away letters or weird symbols
+    # need to figure out the correct way to change these
 
 
     ###### should aim to have # of decimal places that cause increment of letter to be passed into the function (its 4 normally)
@@ -60,6 +67,18 @@ def pango_lineage_naming(annote, ser, alias_key):   # may need to pass in a list
     alias = proposed_name
     proposed_name = list(proposed_name)
     
+    # loop to check if throw away letters are already present in the current name and change them. ( or weird symbols ex: 21D (Eta))
+
+    count  = 0
+    while (proposed_name[count] != '.'):
+        # currlett = roposed_name[count]
+        if proposed_name[count].isdigit():    #ex 21D (eta).x.x.x   essentially ignoring nextstrain info also not including in alias key
+            proposed_name = ''.join(proposed_name)
+            return str(proposed_name), alias_key
+        letter = ord(proposed_name[count])
+        if letter in throw_away_letters:
+            proposed_name[count] = chr(letter + 1)
+        count += 1
 
     # if (proposed_name[0] == 'L') and (proposed_name[1] == '.'):
     #     numb = proposed_name[2]   #doesnt account for double digit numbers    must fix this
@@ -133,11 +152,12 @@ def pango_lineage_naming(annote, ser, alias_key):   # may need to pass in a list
                     if dot_count >= 4:
                         # desc_numb = proposed_name[count+1]
                         break
-                            
-                for i in range(0, count - 1):
-                    proposed_name.pop(i)
-                proposed_name.insert(0, "A")   
-                proposed_name.insert(0, "A")  #should now be AA.x   where x is some descendant number 
+                new_prop_name = []        
+                # for i in range(0, count - 1):
+                #     proposed_name.pop(i)
+                new_prop_name.insert(0, "A")   
+                new_prop_name.insert(0, "A")  #should now be AA.x   where x is some descendant number 
+                proposed_name = ''.join(new_prop_name + proposed_name[count-1:])
                 alias_key[proposed_name] = alias
 
         # if [0] is A and [1] is Z, make BA and so on
@@ -174,6 +194,7 @@ def pango_lineage_naming(annote, ser, alias_key):   # may need to pass in a list
                 # if [0] is some letter and [1] is Z and [2] is '.' (2 letters) increment [1] to next letter unless already Z.  ex: BZ.1.1.1.51 -> CA.51
                 elif ((proposed_name[1] == 'Z') or (proposed_name[1] == 'z')) and ((proposed_name[0] != 'Z') and (proposed_name[0] != 'z')):  # if first letter is already Z
                     letter = ord(proposed_name[0])
+                    # print("PROPOSED NAME 1: ", proposed_name)
                     if letter in throw_away_letters:
                         proposed_name[0] = chr(letter + 2)
                     else:
@@ -189,10 +210,14 @@ def pango_lineage_naming(annote, ser, alias_key):   # may need to pass in a list
                         if dot_count >= 4:
                             # desc_numb = proposed_name[count+1]
                             break
-
-                    for i in range(1, count - 1):
-                        proposed_name.pop(i)
-                    proposed_name.insert(1, "A")   #should now be XA.x   where x is some descendant number and X is some letter
+                    new_prop_name = []
+                    # for i in range(1, count - 1):
+                    #     proposed_name.pop(i)
+                    new_prop_name.append(proposed_name[0])
+                    new_prop_name.append("A")
+                    # new_prop_name.insert(1, "A")   #should now be XA.x   where x is some descendant number and X is some letter
+                    proposed_name = ''.join(new_prop_name + proposed_name[count-1:])
+                    # print("PROPOSED NAME 2: ", proposed_name)
                     alias_key[proposed_name] = alias
 
                 # if [0] is Z and [1] is Z and [2] is '.' (2 letters) change into AAA.  ex: ZZ.1.1.1.51 -> AAA.51
@@ -207,12 +232,13 @@ def pango_lineage_naming(annote, ser, alias_key):   # may need to pass in a list
                         if dot_count >= 4:
                             # desc_numb = proposed_name[count+1]
                             break
-
-                    for i in range(0, count - 1):
-                        proposed_name.pop(i)
-                    proposed_name.insert(0, "A")
-                    proposed_name.insert(0, "A")
-                    proposed_name.insert(0, "A")   #should now be XA.x   where x is some descendant number and X is some letter
+                    new_prop_name = []
+                    # for i in range(0, count - 1):
+                    #     proposed_name.pop(i)
+                    new_prop_name.insert(0, "A")
+                    new_prop_name.insert(0, "A")
+                    new_prop_name.insert(0, "A")   #should now be XA.x   where x is some descendant number and X is some letter
+                    new_prop_name = ''.join(new_prop_name + proposed_name[count-1:])
                     alias_key[proposed_name] = alias
 
             elif (proposed_name[3] == '.'):
@@ -243,7 +269,7 @@ def pango_lineage_naming(annote, ser, alias_key):   # may need to pass in a list
                         new_prop_name.append(proposed_name[i])    #error on full data set
                     # print("Proposed name2: ", proposed_name)
                     proposed_name = ''.join(new_prop_name + proposed_name[count-1:])
-                    print("PROP NAME: ", proposed_name)
+                    # print("PROP NAME: ", proposed_name)
                     # for i in range(3, count - 1):
                     #     proposed_name.pop(i)
                     alias_key[proposed_name] = alias
@@ -265,9 +291,13 @@ def pango_lineage_naming(annote, ser, alias_key):   # may need to pass in a list
                         if dot_count >= 4:
                             # desc_numb = proposed_name[count+1]
                             break
-                    for i in range(2, count - 1):
-                        proposed_name.pop(i)
-                    proposed_name.insert(2, "A")
+                    new_prop_name = []
+                    # for i in range(2, count - 1):
+                    #     proposed_name.pop(i)
+                    new_prop_name.append(proposed_name[0])
+                    new_prop_name.append(proposed_name[1])
+                    new_prop_name.append("A")
+                    proposed_name = ''.join(new_prop_name + proposed_name[count-1:])
                     alias_key[proposed_name] = alias
 
                 # if [0] is not Z and [1] is Z and [2] is Z and [3] is '.' (3 letters) increment [2].  ex: AZZ.1.2.2.27 -> BAA.27
@@ -287,10 +317,13 @@ def pango_lineage_naming(annote, ser, alias_key):   # may need to pass in a list
                         if dot_count >= 4:
                             # desc_numb = proposed_name[count+1]
                             break
-                    for i in range(1, count - 1):
-                        proposed_name.pop(i)
-                    proposed_name.insert(1, "A")
-                    proposed_name.insert(2, "A")
+                    new_prop_name = []
+                    # for i in range(1, count - 1):
+                    #     proposed_name.pop(i)
+                    new_prop_name.append(proposed_name[0])
+                    new_prop_name.append("A")
+                    new_prop_name.append("A")
+                    proposed_name = ''.join(new_prop_name + proposed_name[count-1:])
                     alias_key[proposed_name] = alias
 
 
@@ -648,6 +681,8 @@ def main():
             print("strain\tlineage",file=f)
             for k,v in labels.items():
                 print("{}\t{}".format(k,v),file=f)
+    print("ALIAS KEY: ")
+    print(alias_key)
 
 if __name__ == "__main__":
     main()
