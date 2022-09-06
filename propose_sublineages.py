@@ -326,90 +326,114 @@ def pango_lineage_naming(annote, ser, alias_key):   # may need to pass in a list
                     proposed_name = ''.join(new_prop_name + proposed_name[count-1:])
                     alias_key[proposed_name] = alias
 
-
-            # if (proposed_name != 'Z') or (proposed_name != 'z'):
-
-            #     proposed_name[0] = chr(letter + 1)
-            #     str(proposed_name)
-            # else:
-            #     proposed_name.insert(1, 'A')
-    
-        ### UNCOMMENT START HERE 
-        ##### new faster method that would allow descendant depth number to be inputted as any number (not just 4)
-        # ####################################################
-        # #working on more condensed version of naming algorithm
-        # # must figure out where first decimal place is:
-        # char = ''
-        # count = 0
-        # beginning_letters = []
-        # while (proposed_name[char] != '.'):
-        #     char = proposed_name[count]
-        #     beginning_letters.append(char)
-        #     count += 1
-        # # at this point the count is where the decimal place is
-
-        # #algorithm takes place here:
-        
-        # #smallest (most specific) character
-
-        # # for i in range(1, len(beginning_letters)):
-        
-        # # k = -i
-        # k = -1
-
-        # # while ((beginning_letters[k] != 'Z') and (beginning_letters[k] != 'z')):   #when to stop? when the current letter is not z anymore.   # wb ZCZ -> ZDA
-        # for i in range(1, len(beginning_letters)):   # figure out break condition or maybe this works fine
-
-        #     if (beginning_letters[k] == 'Z') or (beginning_letters[k] == 'z'):
-        #         if (len(beginning_letters) > k*(-1)):   #if current letter is at least not the last letter
-        #             # if (beginning_letters[-2]
-        #             # k = -i -1
-        #             k -= 1
-        #             # beginning_letters[-i - 1]
-
-
-        #         else:
-                    
-
-        #             continue
-
-        #     else:   # increment normal
-
-        #         letter = ord(beginning_letters[k])
-
-        #         beginning_letters[k] = chr(letter + 1)
-
-        #         # beginning_letters is incremented and ready now.
-        #         break
-
-
-        # # dot_count = 0
-        # # count = 0
-        # # # desc_numb = 0
-        # # for char in proposed_name:
-        # #     count += 1
-        # #     if char == '.':
-        # #         dot_count += 1
-        # #     if dot_count >= 4:
-        # #         # desc_numb = proposed_name[count+1]
-        # #         break
-
-        # # for i in range(1, count - 1):
-        # #     proposed_name.pop(i)
-        # # alias_key[proposed_name] = alias
-
-
-    
-        # len(beginning_letters)
-        
-        # ##################################################
-        #### UNCOMMENT END HERE
-
     proposed_name = ''.join(proposed_name)
     # print("name: ", proposed_name)
     alias_key[proposed_name] = alias
     return str(proposed_name), alias_key
 
+
+def pango_lineage_naming2(annote, ser, alias_key, desc_depth):
+     #Throw Away Letters = "I", "O", "X"
+    throw_away_letters = []
+    throw_away_letters.append(ord("X"))
+    throw_away_letters.append(ord("I"))
+    throw_away_letters.append(ord("O"))
+
+    # encountering bug in dump file where some names of lineages have numbers in front such as 20G.13.0.0 or 21B (Kappa).2 or XB.0
+    # thinking this may be involving how im incrementing letters in ascii and converting back.
+    # this could possibly be due to inconsistency in the pango naming algorithm logic. Will change this.
+
+    proposed_name = annote + "." + str(ser)
+    descendant_count = proposed_name.count('.')
+    alias = proposed_name
+    proposed_name = list(proposed_name)
+
+    count  = 0
+    while (proposed_name[count] != '.'):
+        # currlett = roposed_name[count]
+        if proposed_name[count].isdigit():    #ex 21D (eta).x.x.x   essentially ignoring nextstrain info also not including in alias key
+            proposed_name = ''.join(proposed_name)
+            return str(proposed_name), alias_key
+        letter = ord(proposed_name[count])
+        if letter in throw_away_letters:
+            proposed_name[count] = chr(letter + 1)
+        count += 1
+    
+
+    if descendant_count >= desc_depth:
+        ### UNCOMMENT START HERE 
+        #### new faster method that would allow descendant depth number to be inputted as any number (not just 4)
+        ####################################################
+        #working on more condensed version of naming algorithm
+        # must figure out where first decimal place is:
+        char = ''
+        count = 0
+        beginning_letters = []
+        while (proposed_name[count] != '.'):
+            char = proposed_name[count]
+            beginning_letters.append(char)
+            count += 1
+        # at this point the count is where the decimal place is
+
+        #algorithm takes place here:
+        
+        #smallest (most specific) character
+
+        # for i in range(1, len(beginning_letters)):
+        
+        # k = -i
+        k = -1
+
+        # while ((beginning_letters[k] != 'Z') and (beginning_letters[k] != 'z')):   #when to stop? when the current letter is not z anymore.   # wb ZCZ -> ZDA
+        for i in range(1, len(beginning_letters)):   # figure out break condition or maybe this works fine
+
+            if (beginning_letters[k] == 'Z') or (beginning_letters[k] == 'z'):
+                if (len(beginning_letters) > k*(-1)):   #if current letter is at least not the last letter
+                    # if (beginning_letters[-2]
+                    # k = -i -1         # what happens CZB.3.2.2.1 -> CZC.1        CZZ.3.2.2.1 -> DAA.1    CBD.3.2.2.2 -> CEB.2  CBZ.3.2.2.2 -> CCA.2
+                    beginning_letters[k] = "A"
+                    if (beginning_letters[k-1] != "Z") and (beginning_letters[k-1] != "z"):
+                        letter = ord(beginning_letters[k - 1])  #increments letter before if not z
+
+                        beginning_letters[k - 1] = chr(letter + 1)
+                    # the else should be handled in next loop run?
+                    k -= 1
+                    # beginning_letters[-i - 1]
+                # else:
+                #     # K = - (LEN BEG LETTERS) therefore very last letter or beginning letter
+                #     # if len(beginning_letters) < 3:
+                #         # add new letter and change rest
+
+                #     # if (len(beginning_letters) == k*(-1)):
+                #     #     beginning_letters.insert(0, "A")
+
+                    # continue
+            else:   # increment normal
+
+                letter = ord(beginning_letters[k])
+
+                beginning_letters[k] = chr(letter + 1)
+
+                # beginning_letters is incremented and ready now.
+                break
+        dot_count = 0
+        charcount = 0
+        # desc_numb = 0
+        for char in proposed_name:
+            charcount += 1
+            if char == '.':
+                dot_count += 1
+            if dot_count >= 4:
+                # desc_numb = proposed_name[count+1]
+                break
+        # new_prop_name = []
+        # new_prop_name.append(proposed_name[0])
+        proposed_name = ''.join(beginning_letters + proposed_name[charcount-1:])
+
+        len(beginning_letters)
+    proposed_name = ''.join(proposed_name)
+    alias_key[proposed_name] = alias
+    return str(proposed_name), alias_key
 
 def dists_to_root(tree, node, mutweights = {}):
     #nodes must be a dict that gets updated on each recursion
@@ -627,7 +651,8 @@ def main():
                 new_annotes[newname] = best_node.id
                 if args.dump != None:
                     print("ADDING LINEAGES FROM LEVEL {}".format(level))
-                    name, alias_key = pango_lineage_naming(ann, serial, alias_key)
+                    # name, alias_key = pango_lineage_naming(ann, serial, alias_key)
+                    name, alias_key = pango_lineage_naming2(ann, serial, alias_key, 4)
                     print("{}\t{}\t{}\t{}\t{}".format(name,nid,name + '.' + str(serial),best_node.id,str(best_score)),file=dumpf)
                     # print("{}\t{}\t{}\t{}\t{}".format(ann,nid,newname,best_node.id,str(best_score)),file=dumpf)
 
