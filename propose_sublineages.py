@@ -24,21 +24,6 @@ def process_mstr(mstr):
 
 def pango_lineage_naming(annote, ser, alias_key):   # may need to pass in a list of all lineage names to compare and create an accurate new name 
     # mostly for adding to existing pango lineage names
-    # no hardcoding names. must be modular since it will be expanded for other disease
-
-    # 1 and 15 for new parameters
-    # print("ANNOTE: ", annote)
-
-    #QUESTION: should greek letters be converted to pango lineage naming convention? What would they be incremented to? 
-
-    #should change name even if it doesnt have 4 levels of descendants if the name is already incorrect. Check for throw away letters or weird symbols
-    # need to figure out the correct way to change these
-
-
-    ###### should aim to have # of decimal places that cause increment of letter to be passed into the function (its 4 normally)
-    ###### this should also mean that the incrementing algorithm should be in a loop that runs with less hard-coded steps, have to think about this more
-
-
 
     # create alias that could be on the dump file that tells you the summary alias. 
     # "BD" = "B.1.1.529.1.17.2"  for example. just so no information is lost and it can be translated back from summary.
@@ -47,10 +32,8 @@ def pango_lineage_naming(annote, ser, alias_key):   # may need to pass in a list
 
     # omitted "I", "O", "X" per pango guidelines (section 2.1.b)
 
-    
-    letters = {"0":"A", "1":"B", "2":"C", "3":"D", "4":"E", "5":"F", "6":"G", "7":"H", "8":"J", "9":"K", "10":"L", "11":"M", "12":"N", "13":"P",
-    "14":"Q", "15":"R", "16":"S", "17":"T", "18":"U", "19":"V", "20":"W", "21":"Y", "22":"Z"}
-
+    # letters = {"0":"A", "1":"B", "2":"C", "3":"D", "4":"E", "5":"F", "6":"G", "7":"H", "8":"J", "9":"K", "10":"L", "11":"M", "12":"N", "13":"P",
+    # "14":"Q", "15":"R", "16":"S", "17":"T", "18":"U", "19":"V", "20":"W", "21":"Y", "22":"Z"}
 
     #Throw Away Letters = "I", "O", "X"
     throw_away_letters = []
@@ -80,29 +63,8 @@ def pango_lineage_naming(annote, ser, alias_key):   # may need to pass in a list
             proposed_name[count] = chr(letter + 1)
         count += 1
 
-    # if (proposed_name[0] == 'L') and (proposed_name[1] == '.'):
-    #     numb = proposed_name[2]   #doesnt account for double digit numbers    must fix this
-
-    #     if numb in letters:
-    #         letter = letters[numb]
-    #         # print("LENG: " + str(len(proposed_name))
-    #         proposed_name.pop(0)
-    #         proposed_name.pop(1)
-    #         proposed_name.pop(2)
-    #         proposed_name.append(letter)
-
-
-    #     # ###### maybe shouldnt be in else
-    #     # else:  #number is bigger than 22   number%22 until less than 22? that is remainder that will be converted into letter
-    #     #     remain = 23
-    #     #     while (remain > 22):
-    #     #         remain = numb%22
-    #     # #####
-
     #could be if descendant_count >= inputted descendant depth number
     if descendant_count >= 4:  #too many periods for descendants therefore should increment the alphabetical name up 1 letter
-
-        # Question:  what does A.1.3.4.28 turn into? B.28? this would lose the 1.3.4 information since its not 1.1.1  = bc it is the same however alias key will give more info
 
     #     #if [0] is Z and [1] is '.', make AA
     #     # if [0] is A and [1] is Z, make BA and so on
@@ -333,15 +295,13 @@ def pango_lineage_naming(annote, ser, alias_key):   # may need to pass in a list
 
 
 def pango_lineage_naming2(annote, ser, alias_key, desc_depth):
-     #Throw Away Letters = "I", "O", "X"
+    #### desc_depth (4 per pango guidelines) can be altered by user. This integer specifies how many levels of descendants constitues a letter change for the lineage name
+
+    #Throw Away Letters = "I", "O", "X"
     throw_away_letters = []
     throw_away_letters.append(ord("X"))
     throw_away_letters.append(ord("I"))
     throw_away_letters.append(ord("O"))
-
-    # encountering bug in dump file where some names of lineages have numbers in front such as 20G.13.0.0 or 21B (Kappa).2 or XB.0
-    # thinking this may be involving how im incrementing letters in ascii and converting back.
-    # this could possibly be due to inconsistency in the pango naming algorithm logic. Will change this.
 
     proposed_name = annote + "." + str(ser)
     descendant_count = proposed_name.count('.')
@@ -350,7 +310,6 @@ def pango_lineage_naming2(annote, ser, alias_key, desc_depth):
 
     count  = 0
     while (proposed_name[count] != '.'):
-        # currlett = roposed_name[count]
         if proposed_name[count].isdigit():    #ex 21D (eta).x.x.x   essentially ignoring nextstrain info also not including in alias key
             proposed_name = ''.join(proposed_name)
             return str(proposed_name), alias_key
@@ -361,11 +320,6 @@ def pango_lineage_naming2(annote, ser, alias_key, desc_depth):
     
 
     if descendant_count >= desc_depth:
-        ### UNCOMMENT START HERE 
-        #### new faster method that would allow descendant depth number to be inputted as any number (not just 4)
-        ####################################################
-        #working on more condensed version of naming algorithm
-        # must figure out where first decimal place is:
         char = ''
         count = 0
         beginning_letters = []
@@ -373,41 +327,18 @@ def pango_lineage_naming2(annote, ser, alias_key, desc_depth):
             char = proposed_name[count]
             beginning_letters.append(char)
             count += 1
-        # at this point the count is where the decimal place is
-
-        #algorithm takes place here:
-        
-        #smallest (most specific) character
-
-        # for i in range(1, len(beginning_letters)):
-        
-        # k = -i
         k = -1
 
-        # while ((beginning_letters[k] != 'Z') and (beginning_letters[k] != 'z')):   #when to stop? when the current letter is not z anymore.   # wb ZCZ -> ZDA
-        for i in range(1, len(beginning_letters)):   # figure out break condition or maybe this works fine
+        for i in range(1, len(beginning_letters)):
 
             if (beginning_letters[k] == 'Z') or (beginning_letters[k] == 'z'):
                 if (len(beginning_letters) > k*(-1)):   #if current letter is at least not the last letter
-                    # if (beginning_letters[-2]
-                    # k = -i -1         # what happens CZB.3.2.2.1 -> CZC.1        CZZ.3.2.2.1 -> DAA.1    CBD.3.2.2.2 -> CEB.2  CBZ.3.2.2.2 -> CCA.2
+                    # CZB.3.2.2.1 -> CZC.1        CZZ.3.2.2.1 -> DAA.1    CBD.3.2.2.2 -> CEB.2  CBZ.3.2.2.2 -> CCA.2
                     beginning_letters[k] = "A"
                     if (beginning_letters[k-1] != "Z") and (beginning_letters[k-1] != "z"):
                         letter = ord(beginning_letters[k - 1])  #increments letter before if not z
-
                         beginning_letters[k - 1] = chr(letter + 1)
-                    # the else should be handled in next loop run?
                     k -= 1
-                    # beginning_letters[-i - 1]
-                # else:
-                #     # K = - (LEN BEG LETTERS) therefore very last letter or beginning letter
-                #     # if len(beginning_letters) < 3:
-                #         # add new letter and change rest
-
-                #     # if (len(beginning_letters) == k*(-1)):
-                #     #     beginning_letters.insert(0, "A")
-
-                    # continue
             else:   # increment normal
 
                 letter = ord(beginning_letters[k])
@@ -426,10 +357,7 @@ def pango_lineage_naming2(annote, ser, alias_key, desc_depth):
             if dot_count >= 4:
                 # desc_numb = proposed_name[count+1]
                 break
-        # new_prop_name = []
-        # new_prop_name.append(proposed_name[0])
         proposed_name = ''.join(beginning_letters + proposed_name[charcount-1:])
-
         len(beginning_letters)
     proposed_name = ''.join(proposed_name)
     alias_key[proposed_name] = alias
