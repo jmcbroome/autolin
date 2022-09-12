@@ -167,13 +167,14 @@ def argparser():
     parser.add_argument("-d", "--dump", help="Print proposed sublineages to a table.",default=None)
     parser.add_argument("-l", "--labels", help="Print samples and their associated lowest level lineages to a table.",default=None)
     parser.add_argument("-t", "--distinction", help="Require that lineage proposes have at least i mutations distinguishing them from the parent lineage or root.",type=int,default=1)
-    parser.add_argument("-m", "--minsamples", help="Require that each lineage proposal describe at least f samples.", type=int, default=10)
+    parser.add_argument("-m", "--minsamples", help="Require that each lineage proposal describe at least m samples.", type=int, default=10)
     parser.add_argument("-w", "--mutweights", help="Path to an optional two column space-delimited containing mutations and weights to assign them.",default=None)
     parser.add_argument("-g", "--gene", help='Consider only mutations in the indicated gene. Requires that --gtf and --reference be set.', default=None)
     parser.add_argument("-s", "--missense", action='store_true', help="Consider only missense mutations. Requires that --gtf and --reference be set.")
     parser.add_argument("-f", "--floor", help="Minimum score value to report a lineage. Default 0", type=float,default=0)
     parser.add_argument("--gtf", help="Path to a gtf file to apply translation. Use with --reference.")
     parser.add_argument("--reference", help='Path to a reference fasta file to apply translation. Use with --gtf.')
+    parser.add_argument("-v","--verbose",help='Print status updates.',action='store_true')
     args = parser.parse_args()
     return args
 
@@ -182,8 +183,9 @@ def main():
     t = bte.MATree(args.input)
     ##TODO: Figure out a better solution (building a mutweight vector?) based on translation instead of editing the tree
     if args.gtf != None and args.reference != None:
-        print("Performing tree translation and removing mutations not included in selection.")
-        print("Initial tree parsimony:", t.get_parsimony_score())
+        if args.verbose:
+            print("Performing tree translation and removing mutations not included in selection.")
+            print("Initial tree parsimony:", t.get_parsimony_score())
         translation = t.translate(fasta_file=args.reference,gtf_file=args.gtf)
         to_use = {}
         for nid, aav in translation.items():
@@ -197,7 +199,8 @@ def main():
                 for_nid.append(aa.nuc)
             to_use[nid] = for_nid
         t.apply_mutations(to_use)
-        print("Mutations filtered; new tree parsimony:", t.get_parsimony_score())
+        if args.verbose:
+            print("Mutations filtered; new tree parsimony:", t.get_parsimony_score())
     mutweights = {}
     if args.mutweights != None:
         mutweights = parse_mutweights(args.mutweights)
@@ -209,13 +212,17 @@ def main():
     annotes = t.dump_annotations()
     original_annotations = set(annotes.keys())
     if len(annotes) == 0:
-        print("No lineages found in tree; starting from root.")
+        if args.verbose:
+            print("No lineages found in tree; starting from root.")
         annotes = {'L':t.root.id}
     else:
-        print("{} annotations found in the tree; identifying candidates for subdivision.".format(len(annotes)))
+        if args.verbose:
+            print("{} annotations found in the tree; identifying candidates for subdivision.".format(len(annotes)))
         annotes = get_outer_annotes(t, annotes)
-        print("{} outer annotations found in the tree; identifying sublineages.".format(len(annotes)))
-    print("Tree contains {} annotated lineages initially.".format(len(annotes)),file=sys.stderr)
+        if args.verbose:
+            print("{} outer annotations found in the tree; identifying sublineages.".format(len(annotes)))
+    if args.verbose:
+        print("Tree contains {} annotated lineages initially.".format(len(annotes)),file=sys.stderr)
     #keep going until the length of the annotation dictionary doesn't change.
     if args.dump != None:
         print("parent\tparent_nid\tproposed_sublineage\tproposed_sublineage_nid\tproposed_sublineage_score",file=dumpf)
@@ -240,7 +247,6 @@ def main():
                     used_nodes.add(anc.id)
                 new_annotes[newname] = best_node.id
                 if args.dump != None:
-                    print("ADDING LINEAGES FROM LEVEL {}".format(level))
                     print("{}\t{}\t{}\t{}\t{}".format(ann,nid,newname,best_node.id,str(best_score)),file=dumpf)
                 for l in t.get_leaves_ids(best_node.id):
                     labeled.add(l)
@@ -248,7 +254,8 @@ def main():
                 if len(labeled) >= leaf_count:
                     break
                 serial += 1
-                print("Annotated lineage", serial)
+                if args.verbose:
+                    print("Annotated lineage", serial, level)
         if not args.recursive:
             annotes.update(new_annotes)
             break
@@ -258,7 +265,8 @@ def main():
             annotes.update(new_annotes)
             outer_annotes = new_annotes
             level += 1
-    print("After sublineage annotation, tree contains {} annotated lineages.".format(len(annotes)),file=sys.stderr)
+    if args.verbose:
+        print("After sublineage annotation, tree contains {} annotated lineages.".format(len(annotes)),file=sys.stderr)
     if args.output != None:
         annd = {}
         for k,v in annotes.items():
