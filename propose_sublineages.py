@@ -21,6 +21,16 @@ def process_mstr(mstr):
         alt = data[-1]
     return chro, loc, ref, alt
 
+def compute_mutation_weight(node,mutweights):
+    if len(mutweights) == 0:
+        return len(node.mutations)
+    dist = 0
+    for m in node.mutations:
+        _, loc, _, alt = process_mstr(m)
+        mweight = max([mutweights.get((loc,alt,None),0),mutweights.get((loc,alt,node.id),0)])
+        dist += mweight
+    return dist
+
 def dists_to_root(tree, node, mutweights = {}):
     #nodes must be a dict that gets updated on each recursion
     #gives back a dict with all nodes and their respective dist from root
@@ -31,20 +41,13 @@ def dists_to_root(tree, node, mutweights = {}):
             nodes[node.id] = 0   #becomes 0 because it is the root
         for child in node.children:
             if (node.id == tree.root.id):
-                dist = sum([mutweights.get((int(m[1:-1]),m[-1]),1) for m in child.mutations])
+                dist = compute_mutation_weight(child,mutweights)
             else:
-                dist = nodes[node.id] + len(child.mutations)    
+                dist = nodes[node.id] + compute_mutation_weight(child,mutweights)  
             nodes[child.id] = dist
             recursive_dists_to_roots(child)
     recursive_dists_to_roots(node)
     return nodes
-
-def get_node_length(node, mutweights = {}):
-    tlen = 0
-    for m in node.mutations:
-        _, loc, _, alt = process_mstr(m)
-        tlen += mutweights.get((loc,alt),1)
-    return tlen
 
 def get_sum_and_count(rbfs, ignore = set(), mutweights = {}):
     # node sum stored in first index and node count stored in second index of each dict entry
@@ -54,7 +57,7 @@ def get_sum_and_count(rbfs, ignore = set(), mutweights = {}):
         if node.is_leaf():
             leaf_count += 1
             if node.id not in ignore:
-                sum_and_count_dict[node.id] = (get_node_length(node,mutweights), 1)
+                sum_and_count_dict[node.id] = (compute_mutation_weight(node,mutweights), 1)
         else:
             total_count = 0
             total_sum = 0
@@ -71,7 +74,7 @@ def get_sum_and_count(rbfs, ignore = set(), mutweights = {}):
                 #but for an internal node with two leaf children's path length with respect to its parent, 
                 #its equal to the sum of the two child's path lengths plus 2 times its mutations, since those mutations are shared among 2 samples
                 #this logic applies as we move further up the tree.
-                sum_and_count_dict[node.id] = (total_sum + get_node_length(node,mutweights) * total_count, total_count)
+                sum_and_count_dict[node.id] = (total_sum + compute_mutation_weight(node,mutweights) * total_count, total_count)
     return sum_and_count_dict, leaf_count #, leaves
 
 def evaluate_candidate(a, nid, sum_and_counts, dist_to_root, minimum_size=0,minimum_distinction=0):
@@ -92,14 +95,6 @@ def evaluate_candidate(a, nid, sum_and_counts, dist_to_root, minimum_size=0,mini
     else:
         candidate_value = max([(node_count-minimum_size),0]) * (max([candidate_to_parent-minimum_distinction,0])) / (mean_distances + candidate_to_parent)
     return candidate_value
-
-def get_plin_distance(t,nid,mutweights = {}):
-    td = 0
-    for n in t.rsearch(nid,True):
-        td += get_node_length(n, mutweights)
-        if any([ann != "" for ann in n.annotations]):
-            return td
-    return td
 
 def evaluate_lineage(t, dist_to_root, anid, candidates, sum_and_count, minimum_size = 0, minimum_distinction = 0, banned = set()):
     """Evaluate every descendent branch of lineage a to propose new sublineages.
@@ -142,7 +137,7 @@ def get_outer_annotes(t, annotes):
     return outer_annotes
 
 def parse_mutweights(mutweights_file):
-    """Parse a mutation weight file.
+    """Parse a mutation weight file. First column is the mutation, second column is the weight. Optionally set a third column to be the occurrence nodes at which the weight is used.
     """
     mutweights = {}
     with open(mutweights_file) as f:
@@ -155,7 +150,13 @@ def parse_mutweights(mutweights_file):
                 continue
             parts = line.split()
             _, loc, _, alt = process_mstr(parts[0])
-            mutweights[(loc, alt)] = float(parts[1])
+            if len(parts) == 2:
+                mutweights[(loc, alt, parts[2])] = float(parts[1])
+            else:
+                mutweights[(loc, alt, None)] = float(parts[1])
+    if len(mutweights) == 0:
+        print("ERROR: Mutation weight file indicated found empty!")
+        exit(1)
     return mutweights
 
 def argparser():
@@ -168,7 +169,7 @@ def argparser():
     parser.add_argument("-l", "--labels", help="Print samples and their associated lowest level lineages to a table.",default=None)
     parser.add_argument("-t", "--distinction", help="Require that lineage proposes have at least i mutations distinguishing them from the parent lineage or root.",type=int,default=1)
     parser.add_argument("-m", "--minsamples", help="Require that each lineage proposal describe at least m samples.", type=int, default=10)
-    parser.add_argument("-w", "--mutweights", help="Path to an optional two column space-delimited containing mutations and weights to assign them.",default=None)
+    parser.add_argument("-w", "--mutweights", help="Path to an optional two (or three) column space-delimited containing mutations and weights (and nodes) to assign them.",default=None)
     parser.add_argument("-g", "--gene", help='Consider only mutations in the indicated gene. Requires that --gtf and --reference be set.', default=None)
     parser.add_argument("-s", "--missense", action='store_true', help="Consider only missense mutations. Requires that --gtf and --reference be set.")
     parser.add_argument("-f", "--floor", help="Minimum score value to report a lineage. Default 0", type=float,default=0)
@@ -181,30 +182,23 @@ def argparser():
 def main():
     args = argparser()
     t = bte.MATree(args.input)
-    ##TODO: Figure out a better solution (building a mutweight vector?) based on translation instead of editing the tree
+    mutweights = {}
     if args.gtf != None and args.reference != None:
         if args.verbose:
-            print("Performing tree translation and removing mutations not included in selection.")
-            print("Initial tree parsimony:", t.get_parsimony_score())
+            print("Performing tree translation and setting weights for mutations based on amino acid changes.")
         translation = t.translate(fasta_file=args.reference,gtf_file=args.gtf)
-        to_use = {}
         for nid, aav in translation.items():
-            for_nid = []
             for aa in aav:
                 if args.missense and aa.is_synonymous():
                     continue
                 if args.gene != None:
                     if aa.gene != args.gene:
                         continue
-                for_nid.append(aa.nuc)
-            to_use[nid] = for_nid
-        t.apply_mutations(to_use)
-        if args.verbose:
-            print("Mutations filtered; new tree parsimony:", t.get_parsimony_score())
-    mutweights = {}
+                mutweights[(int(aa.nt_index),aa.alternative_nt,nid)] = 1
     if args.mutweights != None:
         mutweights = parse_mutweights(args.mutweights)
-        
+    if args.verbose:
+        print("Considering {} mutations to have weight.".format(len(mutweights)))
     if args.dump != None:
         dumpf = open(args.dump,'w+')
     if args.clear:
@@ -268,17 +262,7 @@ def main():
     if args.verbose:
         print("After sublineage annotation, tree contains {} annotated lineages.".format(len(annotes)),file=sys.stderr)
     if args.output != None:
-        annd = {}
-        for k,v in annotes.items():
-            if v not in annd:
-                annd[v] = []
-            if len(annd[v]) == 2:
-                annd[v][1] = k
-            else:
-                annd[v].append(k)
-        #reload the original tree to restore all edits.
-        t = bte.MATree(args.input)
-        t.apply_annotations(annd)
+        t.apply_annotations(annotes)
         t.save_pb(args.output)
     if args.dump != None:
         dumpf.close()
