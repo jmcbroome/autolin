@@ -204,6 +204,8 @@ def main():
     if args.clear:
         t.apply_annotations({node.id:[] for node in t.depth_first_expansion()})
     annotes = t.dump_annotations()
+    if args.clear:
+        assert len(annotes) == 0
     original_annotations = set(annotes.keys())
     if len(annotes) == 0:
         if args.verbose:
