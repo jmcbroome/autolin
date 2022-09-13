@@ -262,7 +262,15 @@ def main():
     if args.verbose:
         print("After sublineage annotation, tree contains {} annotated lineages.".format(len(annotes)),file=sys.stderr)
     if args.output != None:
-        t.apply_annotations(annotes)
+        annd = {}
+        for k,v in annotes.items():
+            if v not in annd:
+                annd[v] = []
+            if len(annd[v]) == 2:
+                annd[v][1] = k
+            else:
+                annd[v].append(k)
+        t.apply_annotations(annd)
         t.save_pb(args.output)
     if args.dump != None:
         dumpf.close()
