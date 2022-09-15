@@ -93,7 +93,8 @@ def evaluate_candidate(a, nid, sum_and_counts, dist_to_root, minimum_size=0,mini
     if (mean_distances + candidate_to_parent) == 0:   #avoid divide by 0
         candidate_value = 0
     else:
-        candidate_value = max([(node_count-minimum_size),0]) * (max([candidate_to_parent-minimum_distinction,0])) / (mean_distances + candidate_to_parent)
+        # print("DEBUG: {} {} {} {}".format(node_count, max([(node_count-minimum_size+1),0]), candidate_to_parent, max([candidate_to_parent-minimum_distinction+1,0])))
+        candidate_value = max([(node_count-minimum_size+1),0]) * (max([candidate_to_parent-minimum_distinction+1,0])) / (mean_distances + candidate_to_parent)
     return candidate_value
 
 def evaluate_lineage(t, dist_to_root, anid, candidates, sum_and_count, minimum_size = 0, minimum_distinction = 0, banned = set()):
@@ -166,12 +167,13 @@ def argparser():
     parser.add_argument("-r", "--recursive", action='store_true', help='Recursively add additional sublineages to proposed lineages.')
     parser.add_argument("-o", "--output", help='Path to output protobuf, if desired.',default=None)
     parser.add_argument("-d", "--dump", help="Print proposed sublineages to a table.",default=None)
-    parser.add_argument("-l", "--labels", help="Print samples and their associated lowest level lineages to a table.",default=None)
-    parser.add_argument("-t", "--distinction", help="Require that lineage proposes have at least i mutations distinguishing them from the parent lineage or root.",type=int,default=1)
+    parser.add_argument("-l", "--labels", help="Print lineage and sample associations to a table formatted for matUtils annotate -c.",default=None)
+    parser.add_argument("-t", "--distinction", help="Require that lineage proposals have at least t mutations distinguishing them from the parent lineage or root.",type=int,default=1)
     parser.add_argument("-m", "--minsamples", help="Require that each lineage proposal describe at least m samples.", type=int, default=10)
-    parser.add_argument("-w", "--mutweights", help="Path to an optional two (or three) column space-delimited containing mutations and weights (and nodes) to assign them.",default=None)
+    parser.add_argument("-w", "--mutweights", help="Path to an optional two (or three) column space-delimited containing mutations and weights (and nodes) to use to weight lineage choices.",default=None)
     parser.add_argument("-g", "--gene", help='Consider only mutations in the indicated gene. Requires that --gtf and --reference be set.', default=None)
     parser.add_argument("-s", "--missense", action='store_true', help="Consider only missense mutations. Requires that --gtf and --reference be set.")
+    parser.add_argument("-u", "--cutoff", help="Stop adding serial lineages when at least this proportion of samples are covered. Default 0.95",type=float,default=0.95)
     parser.add_argument("-f", "--floor", help="Minimum score value to report a lineage. Default 0", type=float,default=0)
     parser.add_argument("--gtf", help="Path to a gtf file to apply translation. Use with --reference.")
     parser.add_argument("--reference", help='Path to a reference fasta file to apply translation. Use with --gtf.')
@@ -208,7 +210,7 @@ def main():
         assert len(annotes) == 0
     original_annotations = set(annotes.keys())
     if len(annotes) == 0:
-        if args.verbose:
+        if args.verbose and not args.clear:
             print("No lineages found in tree; starting from root.")
         annotes = {'L':t.root.id}
     else:
@@ -221,37 +223,46 @@ def main():
         print("Tree contains {} annotated lineages initially.".format(len(annotes)),file=sys.stderr)
     #keep going until the length of the annotation dictionary doesn't change.
     if args.dump != None:
-        print("parent\tparent_nid\tproposed_sublineage\tproposed_sublineage_nid\tproposed_sublineage_score",file=dumpf)
+        print("parent\tparent_nid\tproposed_sublineage\tproposed_sublineage_nid\tproposed_sublineage_score\tproposed_sublineage_size",file=dumpf)
     outer_annotes = annotes
     level = 1
     while True:
-        print("Level: ",level)
+        if args.verbose:
+            print("Level: ",level)
         new_annotes = {}
         used_nodes = set()
         for ann,nid in outer_annotes.items():
             serial = 0
             labeled = set()
             rbfs = t.breadth_first_expansion(nid, True) #takes the name
+            print("DEBUG: Checking annotation {} with {} descendent nodes".format(nid, len(rbfs)))
             dist_root = dists_to_root(t, t.get_node(nid), mutweights) #needs the node object, not just the name
             while True:
                 scdict, leaf_count = get_sum_and_count(rbfs, ignore = labeled, mutweights = mutweights)
+                print("DEBUG: total distances to root {}, total sums {}".format(sum(dist_root.values()),sum([v[0] for v in scdict.values()])))
                 best_score, best_node = evaluate_lineage(t, dist_root, nid, rbfs, scdict, args.minsamples, args.distinction, used_nodes)
                 if best_score <= args.floor:
+                    print("DEBUG: Best doesn't pass threshold with score {} out of {}".format(best_score, args.floor))
                     break
                 newname = ann + "." + str(serial)
+                while newname in original_annotations:
+                    if args.verbose:
+                        print("Name {} already in annotation; incrementing".format(newname))
+                    serial += 1
+                    newname = ann + '.' + str(serial)
                 for anc in t.rsearch(best_node.id,True):
                     used_nodes.add(anc.id)
                 new_annotes[newname] = best_node.id
+                leaves = t.get_leaves_ids(best_node.id)
                 if args.dump != None:
-                    print("{}\t{}\t{}\t{}\t{}".format(ann,nid,newname,best_node.id,str(best_score)),file=dumpf)
-                for l in t.get_leaves_ids(best_node.id):
+                    print("{}\t{}\t{}\t{}\t{}\t{}".format(ann,nid,newname,best_node.id,str(best_score),len(leaves)),file=dumpf)
+                for l in leaves:
                     labeled.add(l)
-                
-                if len(labeled) >= leaf_count:
+                if len(labeled) >= leaf_count * args.cutoff:
                     break
                 serial += 1
                 if args.verbose:
-                    print("Annotated lineage", serial, level)
+                    print("Annotated lineage {} as descendent of {} from level {} with {} descendents".format(newname, ann, level, len(leaves)))
         if not args.recursive:
             annotes.update(new_annotes)
             break
@@ -277,25 +288,18 @@ def main():
     if args.dump != None:
         dumpf.close()
     if args.labels != None:
-        if args.output == None:
-            annd = {}
-            for k,v in annotes.items():
-                if v not in annd:
-                    annd[v] = []
-            if len(annd[v]) == 2:
-                annd[v][1] = k
-            else:
-                annd[v].append(k)
-            t.apply_annotations(annd)
         labels = {}
         for ann, nid in annotes.items():
-            if ann not in original_annotations:
-                for l in t.get_leaves_ids(nid):
-                    labels[l] = ann
+            for leaf in t.get_leaves_ids(nid):
+                if leaf not in labels:
+                    labels[leaf] = [ann]
+                else:
+                    labels[leaf].append(ann)
+        #format this in a way that's parsed by matUtils annotate -c
         with open(args.labels,'w+') as f:
-            print("strain\tlineage",file=f)
-            for k,v in labels.items():
-                print("{}\t{}".format(k,v),file=f)
+            for l,v in labels.items():
+                for ann in v:
+                    print("{}\t{}".format(ann,l),file=f)
 
 if __name__ == "__main__":
     main()
