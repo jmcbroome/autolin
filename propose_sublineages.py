@@ -241,9 +241,15 @@ def main():
         used_nodes = global_used_nodes
         for ann,nid in outer_annotes.items():
             serial = 0
+            current_child_lineages = {k:v for k,v in annotes if k.split(".")[:-1] == ann.split(".")}
+            print("DEBUG: Found {} child lineages preexisting for lineage {}".format(len(current_child_lineages), ann))
             labeled = set()
+            for lin, nid in current_child_lineages.items():
+                for s in t.get_leaves_ids(nid):
+                    labeled.add(s)
             rbfs = t.breadth_first_expansion(nid, True) #takes the name
-            print("DEBUG: Checking annotation {} with {} descendent nodes".format(nid, len(rbfs)))
+            print("DEBUG: Checking annotation {} with {} descendent nodes.".format(nid, len(rbfs)))
+            print("DEBUG: Currently, annotation has {} sublineages with {} total samples labeled.".format(len(current_child_lineages),len(labeled)))
             dist_root = dists_to_root(t, t.get_node(nid), mutweights) #needs the node object, not just the name
             while True:
                 scdict, leaf_count = get_sum_and_count(rbfs, ignore = labeled, mutweights = mutweights)
