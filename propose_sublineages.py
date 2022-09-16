@@ -114,27 +114,34 @@ def evaluate_lineage(t, dist_to_root, anid, candidates, sum_and_count, minimum_s
         return (0,None)
     return max(good_candidates, key=lambda x: x[0])
 
+def get_skipset(t, annotes):
+    """
+    Return the set of nodes which are, or are ancestral to, existing lineages on the tree. 
+    Used to build a banned node list to prevent retroactive definition of lineage parents. 
+    """
+    skip = set()
+    for lin, nid in annotes.items():
+        ancestors = t.rsearch(nid, True)
+        for anc in ancestors:
+            skip.add(anc.id)
+    return skip
+
 def get_outer_annotes(t, annotes):
-    """Get all outer annotations in a tree.
+    """Get all outer annotations (annotations which are terminal for at least one sample) in a tree.
 
     Args:
         t (MATree): The tree.
         annotes (dict): The annotation dictionary.
     """
-    #find the outermost annotation nodes by looking first at all annotations, then excluding ones that are 
-    #ancestors to some other one. There's also no point in checking ancestor lineages for any lineage that is not itself outermost
-    #as they are not outermost by definition, so use a skip list.
-    skip = set()
-    outer_annotes = {k:v for k,v in annotes.items()}
-    for lin, nid in annotes.items():
-        if lin in skip:
-            continue
-        ancestors = t.rsearch(nid, False)
-        for anc in ancestors:
-            for ann in anc.annotations:
-                if ann != "":
-                    outer_annotes.pop(ann, None)
-                    skip.add(ann)
+    outer_annotes = {}
+    for l in t.get_leaves():
+        mann = l.most_recent_annotation()
+        for a in mann:
+            if a != None and a not in outer_annotes:
+                outer_annotes[a] = annotes[a]
+        if len(outer_annotes) == len(annotes):
+            #all of them will be checked. No need to continue.
+            break
     return outer_annotes
 
 def parse_mutweights(mutweights_file):
@@ -209,6 +216,7 @@ def main():
     if args.clear:
         assert len(annotes) == 0
     original_annotations = set(annotes.keys())
+    global_used_nodes = get_skipset(t, annotes)
     if len(annotes) == 0:
         if args.verbose and not args.clear:
             print("No lineages found in tree; starting from root.")
@@ -220,7 +228,7 @@ def main():
         if args.verbose:
             print("{} outer annotations found in the tree; identifying sublineages.".format(len(annotes)))
     if args.verbose:
-        print("Tree contains {} annotated lineages initially.".format(len(annotes)),file=sys.stderr)
+        print("Tree contains {} annotated lineages initially ({} nodes disregarded to prevent retroactive parent assignment).".format(len(annotes),len(global_used_nodes)),file=sys.stderr)
     #keep going until the length of the annotation dictionary doesn't change.
     if args.dump != None:
         print("parent\tparent_nid\tproposed_sublineage\tproposed_sublineage_nid\tproposed_sublineage_score\tproposed_sublineage_size",file=dumpf)
@@ -230,7 +238,7 @@ def main():
         if args.verbose:
             print("Level: ",level)
         new_annotes = {}
-        used_nodes = set()
+        used_nodes = global_used_nodes
         for ann,nid in outer_annotes.items():
             serial = 0
             labeled = set()
@@ -239,7 +247,7 @@ def main():
             dist_root = dists_to_root(t, t.get_node(nid), mutweights) #needs the node object, not just the name
             while True:
                 scdict, leaf_count = get_sum_and_count(rbfs, ignore = labeled, mutweights = mutweights)
-                print("DEBUG: total distances to root {}, total sums {}".format(sum(dist_root.values()),sum([v[0] for v in scdict.values()])))
+                # print("DEBUG: total distances to root {}, total sums {}".format(sum(dist_root.values()),sum([v[0] for v in scdict.values()])))
                 best_score, best_node = evaluate_lineage(t, dist_root, nid, rbfs, scdict, args.minsamples, args.distinction, used_nodes)
                 if best_score <= args.floor:
                     print("DEBUG: Best doesn't pass threshold with score {} out of {}".format(best_score, args.floor))
