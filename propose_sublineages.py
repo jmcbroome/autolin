@@ -241,22 +241,22 @@ def main():
         used_nodes = global_used_nodes
         for ann,nid in outer_annotes.items():
             serial = 0
-            current_child_lineages = {k:v for k,v in annotes if k.split(".")[:-1] == ann.split(".")}
-            print("DEBUG: Found {} child lineages preexisting for lineage {}".format(len(current_child_lineages), ann))
+            current_child_lineages = {k:v for k,v in annotes.items() if k.split(".")[:-1] == ann.split(".") and k != ann}
             labeled = set()
-            for lin, nid in current_child_lineages.items():
-                for s in t.get_leaves_ids(nid):
+            for lin, cnid in current_child_lineages.items():
+                for s in t.get_leaves_ids(cnid):
                     labeled.add(s)
+            if len(current_child_lineages) > 0:
+                print("DEBUG: Found {} child lineages preexisting for lineage {}; {} samples prelabeled from {} total samples".format(len(current_child_lineages), ann, len(labeled), len(t.get_leaves_ids())))
             rbfs = t.breadth_first_expansion(nid, True) #takes the name
-            print("DEBUG: Checking annotation {} with {} descendent nodes.".format(nid, len(rbfs)))
-            print("DEBUG: Currently, annotation has {} sublineages with {} total samples labeled.".format(len(current_child_lineages),len(labeled)))
+            # print("DEBUG: Checking annotation {} with {} descendent nodes.".format(nid, len(rbfs)))
             dist_root = dists_to_root(t, t.get_node(nid), mutweights) #needs the node object, not just the name
             while True:
                 scdict, leaf_count = get_sum_and_count(rbfs, ignore = labeled, mutweights = mutweights)
                 # print("DEBUG: total distances to root {}, total sums {}".format(sum(dist_root.values()),sum([v[0] for v in scdict.values()])))
                 best_score, best_node = evaluate_lineage(t, dist_root, nid, rbfs, scdict, args.minsamples, args.distinction, used_nodes)
                 if best_score <= args.floor:
-                    print("DEBUG: Best doesn't pass threshold with score {} out of {}".format(best_score, args.floor))
+                    # print("DEBUG: Best doesn't pass threshold with score {} out of {}".format(best_score, args.floor))
                     break
                 newname = ann + "." + str(serial)
                 while newname in original_annotations:
