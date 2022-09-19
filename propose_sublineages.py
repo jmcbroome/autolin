@@ -246,8 +246,8 @@ def main():
             for lin, cnid in current_child_lineages.items():
                 for s in t.get_leaves_ids(cnid):
                     labeled.add(s)
-            if len(current_child_lineages) > 0:
-                print("DEBUG: Found {} child lineages preexisting for lineage {}; {} samples prelabeled from {} total samples".format(len(current_child_lineages), ann, len(labeled), len(t.get_leaves_ids())))
+            # if len(current_child_lineages) > 0:
+                # print("DEBUG: Found {} child lineages preexisting for lineage {}; {} samples prelabeled from {} total samples".format(len(current_child_lineages), ann, len(labeled), len(t.get_leaves_ids(nid))))
             rbfs = t.breadth_first_expansion(nid, True) #takes the name
             # print("DEBUG: Checking annotation {} with {} descendent nodes.".format(nid, len(rbfs)))
             dist_root = dists_to_root(t, t.get_node(nid), mutweights) #needs the node object, not just the name
@@ -260,8 +260,6 @@ def main():
                     break
                 newname = ann + "." + str(serial)
                 while newname in original_annotations:
-                    if args.verbose:
-                        print("Name {} already in annotation; incrementing".format(newname))
                     serial += 1
                     newname = ann + '.' + str(serial)
                 for anc in t.rsearch(best_node.id,True):
