@@ -158,7 +158,7 @@ def parse_mutweights(mutweights_file):
                 continue
             parts = line.split()
             _, loc, _, alt = process_mstr(parts[0])
-            if len(parts) == 2:
+            if len(parts) == 3:
                 mutweights[(loc, alt, parts[2])] = float(parts[1])
             else:
                 mutweights[(loc, alt, None)] = float(parts[1])
