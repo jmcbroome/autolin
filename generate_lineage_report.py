@@ -35,20 +35,19 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
     def sublineage_size(row):
         subsamples = t.get_leaves_ids(row.proposed_sublineage_nid)
         return len(subsamples)
-    print("Computing sublineage percent")
-    pdf['ParentLineageSize'] = pdf.apply(parent_lineage_size,axis=1)
-    pdf['SublineageSize'] = pdf.apply(sublineage_size,axis=1)
-    pdf['SublineagePercent'] = pdf.SublineageSize/pdf.ParentLineageSize
+    print("Computing sublineage percentages.")
+    pdf['parent_lineage_size'] = pdf.apply(parent_lineage_size,axis=1)
+    pdf['proposed_sublineage_percent'] = pdf.proposed_sublineage_size/pdf.sublineage_percent
     def parsimony_parent(row):
         parent_parsimony = sum([len(n.mutations) for n in t.depth_first_expansion(row.parent_nid)])
         return parent_parsimony
     def parsimony_child(row):
         child_parsimony = sum([len(n.mutations) for n in t.depth_first_expansion(row.proposed_sublineage_nid)])
         return child_parsimony
-    print("Computing parsimony percent")
-    pdf['ParentParsimony'] = pdf.apply(parsimony_parent,axis=1)
-    pdf['SublineageParsimony'] = pdf.apply(parsimony_child,axis=1)
-    pdf['ParsimonyPercent'] = pdf.SublineageParsimony/pdf.ParentParsimony
+    print("Computing parsimony percentages.")
+    pdf['parent_parsimony'] = pdf.apply(parsimony_parent,axis=1)
+    pdf['proposed_sublineage_parsimony'] = pdf.apply(parsimony_child,axis=1)
+    pdf['parsimony_percent'] = pdf.proposed_sublineage_parsimony/pdf.parent_parsimony
     mdf['date'] = mdf.date.apply(get_date)
     def get_start_ends(row):
         parent_samples = set(t.get_leaves_ids(row.parent_nid))
@@ -62,13 +61,13 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
             raise KeyboardInterrupt
         except:
             return np.nan,np.nan,np.nan,np.nan
-    print("Computing start and end dates")
+    print("Computing start and end dates.")
     applied_pdf = pdf.apply(lambda row: get_start_ends(row), axis='columns', result_type='expand')
     pdf = pd.concat([pdf, applied_pdf], axis='columns')
-    pdf = pdf.rename({0:'EarliestParent',1:'LatestParent',2:'EarliestChild',3:'LatestChild'},axis=1)
-    pdf['LogScore'] = np.log10(pdf.proposed_sublineage_score)
-    pdf["Successive"] = pdf.apply(is_successive,axis=1)
-    print("Doing international")
+    pdf = pdf.rename({0:'earliest_parent',1:'latest_parent',2:'earliest_child',3:'latest_child'},axis=1)
+    pdf['log_score'] = np.log10(pdf.proposed_sublineage_score)
+    pdf["successive"] = pdf.apply(is_successive,axis=1)
+    print("Tracking country composition.")
     def get_regions(nid):
         try:
             return ",".join(list(mdf.loc[t.get_leaves_ids(nid)].country.value_counts().index))
@@ -79,9 +78,9 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
             return ",".join([str(p) for p in mdf.loc[t.get_leaves_ids(nid)].country.value_counts(normalize=True)])
         except:
             return np.nan
-    pdf['ChildRegions'] = pdf.proposed_sublineage_nid.apply(get_regions)
+    pdf['child_regions'] = pdf.proposed_sublineage_nid.apply(get_regions)
     # pdf['ParentRegions'] = pdf.parent_nid.apply(get_regions)
-    pdf['ChildRegionPercents'] = pdf.proposed_sublineage_nid.apply(get_regions_percents)
+    pdf['child_region_percents'] = pdf.proposed_sublineage_nid.apply(get_regions_percents)
     # pdf['ParentRegionPercents'] = pdf.parent_nid.apply(get_regions_percents)
     def host_jump(row):
         try:
@@ -89,7 +88,7 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
         except:
             return False
     print("Identifying host jumps.")
-    pdf['HostJump'] = pdf.apply(host_jump,axis=1)
+    pdf['host_jump'] = pdf.apply(host_jump,axis=1)
     print("Generating cov-spectrum URLs.")
     def generate_url(nid):
         mset = t.get_haplotype(nid)
@@ -103,7 +102,7 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
             url += m
         url += ']'
         return url
-    pdf['Links'] = pdf.proposed_sublineage_nid.apply(generate_url)
+    pdf['link'] = pdf.proposed_sublineage_nid.apply(generate_url)
     print("Collecting mutations.")
     def get_separating_mutations(row):
         hapstring = []
@@ -112,7 +111,7 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
                 break
             hapstring.append(",".join(n.mutations))
         return ">".join(hapstring)
-    pdf['Mutations'] = pdf.apply(get_separating_mutations,axis=1)
+    pdf['mutations'] = pdf.apply(get_separating_mutations,axis=1)
     if gtf_file != None and fa_file != None:
         print("Performing translation.")
         translation = t.translate(fasta_file = fa_file, gtf_file = gtf_file)
@@ -125,7 +124,7 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
                 hapstring.append(",".join([aav.gene+":"+aav.aa for aav in aas]))
             return ">".join(hapstring)
         print("Retrieving amino acid changes.")
-        pdf['AAChanges'] = pdf.apply(get_separating_translation,axis=1)
+        pdf['aa_changes'] = pdf.apply(get_separating_translation,axis=1)
     return pdf
 
 def main():
