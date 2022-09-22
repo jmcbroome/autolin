@@ -49,7 +49,7 @@ def dists_to_root(tree, node, mutweights = {}):
     recursive_dists_to_roots(node)
     return nodes
 
-def get_sum_and_count(rbfs, ignore = set(), mutweights = {}):
+def get_sum_and_count(rbfs, ignore = set(), mutweights = {}, sampleweights = {}):
     # node sum stored in first index and node count stored in second index of each dict entry
     sum_and_count_dict = {}
     leaf_count = 0
@@ -57,7 +57,12 @@ def get_sum_and_count(rbfs, ignore = set(), mutweights = {}):
         if node.is_leaf():
             leaf_count += 1
             if node.id not in ignore:
-                sum_and_count_dict[node.id] = (compute_mutation_weight(node,mutweights), 1)
+                #some samples can count as more than one- or less than one- sample for computing weight values.
+                if len(sampleweights) == 0:
+                    count = 1
+                else:
+                    count = float(sampleweights.get(node.id, 0))
+                sum_and_count_dict[node.id] = (compute_mutation_weight(node,mutweights), count)
         else:
             total_count = 0
             total_sum = 0
@@ -183,21 +188,35 @@ def build_annotation_network(t, rawann):
                 annd[ann].append(p)
     return annd
 
-def read_samples(sfile):
-    samples = set()
+def read_samples_weights(sfile):
+    samples = {}
     with open(sfile) as inf:
         for entry in inf:
-            samples.add(entry.strip().split('\t')[0])
+            spent = entry.strip().split()
+            if len(spent) == 1:
+                samples[spent[0]] = 1
+            else:
+                samples[spent[0]] = spent[1]
     return samples
 
 def filter_annotes(t, annotes, selection):
     filtered = {}
     for ann, nid in annotes.items():
-        ancestry = t.rsearch(nid)
+        ancestry = t.rsearch(nid,True)
         for a in ancestry:
             if selection in a.annotations:
                 filtered[ann] = nid
     return filtered
+
+def parse_aaweights(aaf):
+    aad = {}
+    with open(aaf) as inf:
+        for entry in inf:
+            gene, sitel, weight = entry.strip().split()
+            site = int(sitel[:-1])
+            state = sitel[-1]
+            aad[(gene, site, state)] = float(weight)
+    return aad
 
 def argparser():
     parser = argparse.ArgumentParser(description="Propose sublineages for existing lineages based on relative representation concept.")
@@ -210,6 +229,7 @@ def argparser():
     parser.add_argument("-t", "--distinction", help="Require that lineage proposals have at least t mutations distinguishing them from the parent lineage or root.",type=int,default=1)
     parser.add_argument("-m", "--minsamples", help="Require that each lineage proposal describe at least m samples.", type=int, default=10)
     parser.add_argument("-w", "--mutweights", help="Path to an optional two (or three) column space-delimited containing mutations and weights (and nodes) to use to weight lineage choices.",default=None)
+    parser.add_argument("-y", "--aaweights", help="Path to an optional three column space-delimited containing amino acid changes and weights to use to weight lineage choices. Requires --gtf and --reference to be set. Changes not included will be weighted as 1.",default=None)
     parser.add_argument("-g", "--gene", help='Consider only mutations in the indicated gene. Requires that --gtf and --reference be set.', default=None)
     parser.add_argument("-s", "--missense", action='store_true', help="Consider only missense mutations. Requires that --gtf and --reference be set.")
     parser.add_argument("-u", "--cutoff", help="Stop adding serial lineages when at least this proportion of samples are covered. Default 0.95",type=float,default=0.95)
@@ -218,7 +238,7 @@ def argparser():
     parser.add_argument("--reference", help='Path to a reference fasta file to apply translation. Use with --gtf.')
     parser.add_argument("-v","--verbose",help='Print status updates.',action='store_true')
     parser.add_argument("-a","--annotation",help='Choose a specific lineage, and its sublineages, to propose new sublineages for.',default=None)
-    parser.add_argument("-p","--samples",help='Path to a space-delimited file containing samples to consider in the first column.',default=None)
+    parser.add_argument("-p","--samples",help='Path to a space-delimited file containing samples and weights in the first and second columns. If used, samples not included in this file will be ignored.',default=None)
     args = parser.parse_args()
     return args
 
@@ -229,6 +249,10 @@ def main():
     if args.gtf != None and args.reference != None:
         if args.verbose:
             print("Performing tree translation and setting weights for mutations based on amino acid changes.")
+        aaweights = {}
+        if args.aaweights != None:
+            print("Retrieving amino acid change weightings.")
+            aaweights = parse_aaweights(args.aaweights)
         translation = t.translate(fasta_file=args.reference,gtf_file=args.gtf)
         for nid, aav in translation.items():
             for aa in aav:
@@ -237,9 +261,10 @@ def main():
                 if args.gene != None:
                     if aa.gene != args.gene:
                         continue
-                mutweights[(int(aa.nt_index),aa.alternative_nt,nid)] = 1
+                mutweights[(int(aa.nt_index),aa.alternative_nt,nid)] = aaweights.get((aa.gene, aa.aa_index, aa.aa), 1)
     if args.mutweights != None:
         mutweights.update(parse_mutweights(args.mutweights))
+        # print("DEBUG: Mutweights that are not 1: ", {k:v for k,v in mutweights.items() if v != 1})
     if args.verbose:
         print("Considering {} mutations to have weight.".format(len(mutweights)))
     if args.dump != None:
@@ -279,14 +304,15 @@ def main():
         print("parent\tparent_nid\tproposed_sublineage\tproposed_sublineage_nid\tproposed_sublineage_score\tproposed_sublineage_size",file=dumpf)
     outer_annotes = annotes
     global_labeled = set()
+    sample_weights = {}
     if args.samples != None:
         allsamples = t.get_leaves_ids()
-        samples_to_use = read_samples(args.samples)
+        sample_weights = read_samples_weights(args.samples)
         for s in allsamples:
-            if s not in samples_to_use:
+            if s not in sample_weights:
                 global_labeled.add(s)
         if args.verbose:
-            print("{} samples requested for consideration; ignoring {} samples".format(len(samples_to_use),len(global_labeled)))
+            print("{} samples given weights; ignoring {} samples".format(len(sample_weights),len(global_labeled)))
     level = 1
     while True:
         if args.verbose:
@@ -307,7 +333,7 @@ def main():
             # print("DEBUG: Checking annotation {} with {} descendent nodes.".format(nid, len(rbfs)))
             dist_root = dists_to_root(t, t.get_node(nid), mutweights) #needs the node object, not just the name
             while True:
-                scdict, leaf_count = get_sum_and_count(rbfs, ignore = labeled, mutweights = mutweights)
+                scdict, leaf_count = get_sum_and_count(rbfs, ignore = labeled, mutweights = mutweights, sampleweights = sample_weights)
                 # print("DEBUG: total distances to root {}, total sums {}".format(sum(dist_root.values()),sum([v[0] for v in scdict.values()])))
                 best_score, best_node = evaluate_lineage(t, dist_root, nid, rbfs, scdict, args.minsamples, args.distinction, used_nodes)
                 if best_score <= args.floor:
