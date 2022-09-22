@@ -137,7 +137,7 @@ def get_outer_annotes(t, annotes):
     for l in t.get_leaves():
         mann = l.most_recent_annotation()
         for a in mann:
-            if a != None and a not in outer_annotes:
+            if a != None and a not in outer_annotes and a in annotes:
                 outer_annotes[a] = annotes[a]
         if len(outer_annotes) == len(annotes):
             #all of them will be checked. No need to continue.
@@ -183,6 +183,22 @@ def build_annotation_network(t, rawann):
                 annd[ann].append(p)
     return annd
 
+def read_samples(sfile):
+    samples = set()
+    with open(sfile) as inf:
+        for entry in inf:
+            samples.add(entry.strip().split('\t')[0])
+    return samples
+
+def filter_annotes(t, annotes, selection):
+    filtered = {}
+    for ann, nid in annotes.items():
+        ancestry = t.rsearch(nid)
+        for a in ancestry:
+            if selection in a.annotations:
+                filtered[ann] = nid
+    return filtered
+
 def argparser():
     parser = argparse.ArgumentParser(description="Propose sublineages for existing lineages based on relative representation concept.")
     parser.add_argument("-i", "--input", required=True, help='Path to protobuf to annotate.')
@@ -201,6 +217,8 @@ def argparser():
     parser.add_argument("--gtf", help="Path to a gtf file to apply translation. Use with --reference.")
     parser.add_argument("--reference", help='Path to a reference fasta file to apply translation. Use with --gtf.')
     parser.add_argument("-v","--verbose",help='Print status updates.',action='store_true')
+    parser.add_argument("-a","--annotation",help='Choose a specific lineage, and its sublineages, to propose new sublineages for.',default=None)
+    parser.add_argument("-p","--samples",help='Path to a space-delimited file containing samples to consider in the first column.',default=None)
     args = parser.parse_args()
     return args
 
@@ -228,10 +246,20 @@ def main():
         dumpf = open(args.dump,'w+')
     if args.clear:
         t.apply_annotations({node.id:[] for node in t.depth_first_expansion()})
-    annotes = t.dump_annotations()
-    ann_net = build_annotation_network(t, annotes)
+    annotes = t.dump_annotations()        
+    if args.annotation != None:
+        if args.clear:
+            print("ERROR: Cannot select lineages (-a) while clearing lineages (-c)!")
+            exit(1)
+        #only keep annotations that have the indicated annotation on their ancestry path.
+        if args.verbose:
+            print("Finding annotations that are descendants of {}.".format(args.annotation))
+        annotes = filter_annotes(t, annotes, args.annotation)
+        if args.verbose:
+            print("Found {} annotations to check for sublineages.".format(len(annotes)))
     if args.clear:
         assert len(annotes) == 0
+    ann_net = build_annotation_network(t, annotes)
     original_annotations = set(annotes.keys())
     global_used_nodes = get_skipset(t, annotes)
     if len(annotes) == 0:
@@ -250,22 +278,32 @@ def main():
     if args.dump != None:
         print("parent\tparent_nid\tproposed_sublineage\tproposed_sublineage_nid\tproposed_sublineage_score\tproposed_sublineage_size",file=dumpf)
     outer_annotes = annotes
+    global_labeled = set()
+    if args.samples != None:
+        allsamples = t.get_leaves_ids()
+        samples_to_use = read_samples(args.samples)
+        for s in allsamples:
+            if s not in samples_to_use:
+                global_labeled.add(s)
+        if args.verbose:
+            print("{} samples requested for consideration; ignoring {} samples".format(len(samples_to_use),len(global_labeled)))
     level = 1
     while True:
         if args.verbose:
             print("Level: ",level)
         new_annotes = {}
-        used_nodes = global_used_nodes
+        used_nodes = global_used_nodes.copy()
         for ann,nid in outer_annotes.items():
             serial = 0
             current_child_lineages = {k:v for k,v in annotes.items() if ann in ann_net.get(k,[])}
-            labeled = set()
+            labeled = global_labeled.copy()
             for lin, cnid in current_child_lineages.items():
                 for s in t.get_leaves_ids(cnid):
                     labeled.add(s)
-            if len(current_child_lineages) > 0:
-                print("DEBUG: Found {} child lineages preexisting for lineage {}; {} samples prelabeled".format(len(current_child_lineages), ann, len(labeled)))
             rbfs = t.breadth_first_expansion(nid, True) #takes the name
+            if len(current_child_lineages) > 0 and args.verbose:
+                parent_leaf_count = len([n for n in rbfs if n.is_leaf()])
+                print("Found {} child lineages preexisting for lineage {}; {} samples prelabeled from {} total ({}%)".format(len(current_child_lineages), ann, len(labeled)-len(global_labeled), parent_leaf_count, 100*(len(labeled)-len(global_labeled))/parent_leaf_count))
             # print("DEBUG: Checking annotation {} with {} descendent nodes.".format(nid, len(rbfs)))
             dist_root = dists_to_root(t, t.get_node(nid), mutweights) #needs the node object, not just the name
             while True:
