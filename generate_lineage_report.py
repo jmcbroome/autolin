@@ -88,7 +88,9 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
             return mdf.loc[t.get_leaves_ids(row.proposed_sublineage_nid)].host.nunique() > 1
         except:
             return False
+    print("Identifying host jumps.")
     pdf['HostJump'] = pdf.apply(host_jump,axis=1)
+    print("Generating cov-spectrum URLs.")
     def generate_url(nid):
         mset = t.get_haplotype(nid)
         url = "https://cov-spectrum.org/explore/World/AllSamples/AllTimes/variants?variantQuery=[" + str(len(mset)) + "-of:"
@@ -102,6 +104,7 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
         url += ']'
         return url
     pdf['Links'] = pdf.proposed_sublineage_nid.apply(generate_url)
+    print("Collecting mutations.")
     def get_separating_mutations(row):
         hapstring = []
         for n in t.rsearch(row.proposed_sublineage_nid,True):
@@ -111,8 +114,9 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
         return ">".join(hapstring)
     pdf['Mutations'] = pdf.apply(get_separating_mutations,axis=1)
     if gtf_file != None and fa_file != None:
+        print("Performing translation.")
+        translation = t.translate(fasta_file = fa_file, gtf_file = gtf_file)
         def get_separating_translation(row):
-            translation = t.translate(fasta_file = fa_file, gtf_file = gtf_file)
             hapstring = []
             for n in t.rsearch(row.proposed_sublineage_nid,True):
                 if n.id == row.parent_nid:
@@ -120,6 +124,7 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
                 aas = translation.get(n.id,[])
                 hapstring.append(",".join([aav.gene+":"+aav.aa for aav in aas]))
             return ">".join(hapstring)
+        print("Retrieving amino acid changes.")
         pdf['AAChanges'] = pdf.apply(get_separating_translation,axis=1)
     return pdf
 
