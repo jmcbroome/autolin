@@ -324,7 +324,7 @@ def parse_mutweights(mutweights_file):
                 continue
             parts = line.split()
             _, loc, _, alt = process_mstr(parts[0])
-            if len(parts) == 2:
+            if len(parts) == 3:
                 mutweights[(loc, alt, parts[2])] = float(parts[1])
             else:
                 mutweights[(loc, alt, None)] = float(parts[1])
@@ -332,6 +332,22 @@ def parse_mutweights(mutweights_file):
         print("ERROR: Mutation weight file indicated found empty!")
         exit(1)
     return mutweights
+
+def build_annotation_network(t, rawann):
+    #build a dictionary reflecting the relationship structure between these nodes
+    annd = {}
+    for ann, nid in rawann.items():
+        pnode = t.get_node(nid).parent
+        if pnode != None: 
+            parents = pnode.most_recent_annotation()
+        else:
+            parents = []
+        for p in parents:
+            if ann not in annd:
+                annd[ann] = [p]
+            else:
+                annd[ann].append(p)
+    return annd
 
 def argparser():
     parser = argparse.ArgumentParser(description="Propose sublineages for existing lineages based on relative representation concept.")
@@ -372,7 +388,7 @@ def main():
                         continue
                 mutweights[(int(aa.nt_index),aa.alternative_nt,nid)] = 1
     if args.mutweights != None:
-        mutweights = parse_mutweights(args.mutweights)
+        mutweights.update(parse_mutweights(args.mutweights))
     if args.verbose:
         print("Considering {} mutations to have weight.".format(len(mutweights)))
     if args.metadata != None:
@@ -382,6 +398,7 @@ def main():
     if args.clear:
         t.apply_annotations({node.id:[] for node in t.depth_first_expansion()})
     annotes = t.dump_annotations()
+    ann_net = build_annotation_network(t, annotes)
     if args.clear:
         assert len(annotes) == 0
     original_annotations = set(annotes.keys())
@@ -411,13 +428,13 @@ def main():
         used_nodes = global_used_nodes
         for ann,nid in outer_annotes.items():
             serial = 0
-            current_child_lineages = {k:v for k,v in annotes.items() if k.split(".")[:-1] == ann.split(".") and k != ann}
+            current_child_lineages = {k:v for k,v in annotes.items() if ann in ann_net.get(k,[])}
             labeled = set()
             for lin, cnid in current_child_lineages.items():
                 for s in t.get_leaves_ids(cnid):
                     labeled.add(s)
-            # if len(current_child_lineages) > 0:
-                # print("DEBUG: Found {} child lineages preexisting for lineage {}; {} samples prelabeled from {} total samples".format(len(current_child_lineages), ann, len(labeled), len(t.get_leaves_ids(nid))))
+            if len(current_child_lineages) > 0:
+                print("DEBUG: Found {} child lineages preexisting for lineage {}; {} samples prelabeled".format(len(current_child_lineages), ann, len(labeled)))
             rbfs = t.breadth_first_expansion(nid, True) #takes the name
             # print("DEBUG: Checking annotation {} with {} descendent nodes.".format(nid, len(rbfs)))
             dist_root = dists_to_root(t, t.get_node(nid), mutweights) #needs the node object, not just the name
@@ -429,7 +446,6 @@ def main():
                     # print("DEBUG: Best doesn't pass threshold with score {} out of {}".format(best_score, args.floor))
                     break
                 newname = ann + "." + str(serial)
-
                 while newname in original_annotations:
                     serial += 1
                     newname = ann + '.' + str(serial)
