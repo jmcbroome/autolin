@@ -4,7 +4,7 @@ This repository contains an implementation of a concept for automated lineage an
 emphasis on SARS-CoV-2. 
 
 Robust viral lineage identification is a critical problem. Many epidemiological analyses are reliant on abstracting a viral phylogeny
-into genotype categories, or lineages, such as Omicron and Delta. However, lineages are often identified in a haphazard fashion, with individual researchers scrutinizing the phylogeny manually and proposing new lineages individually, in a way informed by their own biases and focuses. Here, I propose a simple alternative lineage identification concept focused on genotype representation.
+into genotype categories, or lineages, such as Omicron and Delta. However, lineages are often identified in a haphazard fashion, with individual researchers scrutinizing the phylogeny manually and proposing new lineages individually, in a way informed by their own biases and focuses. Here, I propose a simple alternative lineage identification concept based on genotype representation.
 
 Intuitively, to generate a single lineage annotation, we identify
 the node on the tree with the highest scaled mean genotype representation. Stating that a sample is descended from a node conveys something about the genotype of that samples. For each sample descended from a given node, that node
@@ -26,17 +26,7 @@ nodes from the remaining samples, until most samples are included in a lineage o
 lineages can be generated hierarchically (as sublineages), which is performed by repeating the serial process on a subtree defined by 
 a higher level lineage label. 
 
-By itself, this index does not have a stopping condition or a way to evaluate the quality of a proposed sublineage in general. To address this critical weakness, we define the following:
-
-$$
-{N * D \over{{S \over{N}} + D}} - {N * R \over{{S \over{N}} + D + R}} > M
-$$
-
-This equation evaluates whether a proposed sublineages representation (left) is greater than the theoretical representation of the root/parent lineage against a hypothetical or actual grandparent lineage with R (or more) mutations separating them. Generally, these will be large positive values when the sublineage is a much better representative of its samples than the parent lineage, and negative when new sublineage labels represent less than Rd mutations per descendent sample compared to their parent. 
-
-We can increase the minimum value (M) of the equation from the default of 0, which will prevent the creation of small, marginal sublineages that are barely better representations than existing labels. We can also set a low maximum value for R, which will allow lineages descended from very long branches (e.g. Omicron) to be effectively subdivided further, even if the relative parental representation in raw mutations is very high.
-
-With this metric, lineages are generated serially and while disregarding all samples labeled at this level until all remaining candidate nodes fail the inequality. Lineages are then generated hierarchically by individually generating sublineages at each outermost lineage (a lineage with no sublineages) until no candidate nodes pass the inequality. Sublineage proposal is complete when all existing outermost lineages have no descendent nodes with positive representation gains under the given parameters.
+Critically, this system allows for flexible alterations of sample or mutational weight when computing these metrics. Mutations which are known to be associated with changes in epidemiological behavior can be given high weights, meaning they contribute a larger value to the path length and will push the criterion to define lineages that include them on their path. Similarly, samples from regions of interest or underrepresented times and places can be counted as more than one sample, again pushing the criterion to define lineages which represent these specific samples well.
 
 This does not invalidate current approaches or lineages defined under other systems, but instead augments those lineage systems
 by proposing new sublineages automatically. 
@@ -63,18 +53,13 @@ Currently available parameters are
 
 ## Current Issues
 
-### Non-Tree Considerations
+### Tree Growth and Lineage Optimization
 
-Many lineage systems take into account geographical or temporal elements. This is because many lineage systems do not strictly
-seek to optimize genotype representation, but rather epidemiological relevance- while genotype is clearly critical to epidemiological behavior of a virus, other elements like location and relative sampling rate can affect this. We therefore want to optionally support
-the use of metadata frequencies or other considerations in sample contribution to optimal lineage defintions. For example, we may want to more heavily weight samples from an underrepresented and undersampled area for lineage calls.
+This method is designed with a fixed tree, and designates lineages which are optimal representations given an existing tree. In reality, however, new data comes in and the tree grows; a formerly optimal lineage may no longer be optimal after the tree grows or is optimized itself. At the moment we have no good solution to the issue of the accumulation of suboptimal lineages as the tree grows, and are interested in feedback or suggestions for the effective identification of when a lineage should be retracted and reassigned. 
 
-For example, we could weight samples by the inverse of their representation across the tree (if Peru consists of 5% of samples, then we can give Peruvian samples a weight multiplier
-1/0.05 = 20). 
+### Regularization of Lineage System Size
 
-We might also consider some categories of mutation to be substantially more important than others. Critical spike protein mutations can lead to large epidemiological changes while being a relatively small part of a genotype. We can treat these mutations as contributing more than 1 to the total path length as we compute our genotype representation.
-
-There are many potential systems, but which systems to consider directly supporting in any final implementation of this method is a critical question, though the basic method should remain based on phylogenetic information alone.
+We're also interested in a method to effectively penalize the addition of new lineages. This system is an automatic way to identify the best choice for a new lineage label, but is not effective at deciding whether a new lineage label should be added at all. We currently use a variety of thresholds for minimum lineage size and distinction from its parent lineage, but ideally, we would have a more informed regularization scheme.
 
 ## Feedback
 
