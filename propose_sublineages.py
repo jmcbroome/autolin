@@ -242,8 +242,7 @@ def argparser():
     args = parser.parse_args()
     return args
 
-def main():
-    args = argparser()
+def propose(args):
     t = bte.MATree(args.input)
     mutweights = {}
     if args.gtf != None and args.reference != None:
@@ -394,5 +393,9 @@ def main():
                 for ann in v:
                     print("{}\t{}".format(ann,l),file=f)
 
+def main():
+    args = argparser()
+    propose(args)
+    
 if __name__ == "__main__":
     main()

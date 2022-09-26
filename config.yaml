@@ -1,0 +1,17 @@
+escape_data: "./SARS2_RBD_Ab_escape_maps/processed_data/escape_data.csv"
+reference_genome: "./NC_045512v2.fa"
+reference_gtf: "./ncbiGenes.gtf"
+genbank: "./hu1.gb"
+lineage_params:
+  floor: 100
+  annotation: None
+  missense: True
+  gene: None
+  minsamples: 15
+  distinction: 1
+  recursive: True
+  logfile: "lineages.log"
+  cutoff: 0.99
+  weight_params:
+    escape_weighting: 100
+    country_weighting: 10
