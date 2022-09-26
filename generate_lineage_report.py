@@ -22,7 +22,7 @@ def get_date(d):
         return np.nan
 
 def is_successive(row):
-    if row.EarliestChild > row.EarliestParent and row.LatestChild > row.LatestParent:
+    if row.earliest_child > row.earliest_parent and row.latest_child > row.latest_parent:
         return True
     else:
         return False
@@ -37,7 +37,7 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
         return len(subsamples)
     print("Computing sublineage percentages.")
     pdf['parent_lineage_size'] = pdf.apply(parent_lineage_size,axis=1)
-    pdf['proposed_sublineage_percent'] = pdf.proposed_sublineage_size/pdf.sublineage_percent
+    pdf['proposed_sublineage_percent'] = round(pdf.proposed_sublineage_size/pdf.parent_lineage_size,2)
     def parsimony_parent(row):
         parent_parsimony = sum([len(n.mutations) for n in t.depth_first_expansion(row.parent_nid)])
         return parent_parsimony
@@ -47,7 +47,7 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
     print("Computing parsimony percentages.")
     pdf['parent_parsimony'] = pdf.apply(parsimony_parent,axis=1)
     pdf['proposed_sublineage_parsimony'] = pdf.apply(parsimony_child,axis=1)
-    pdf['parsimony_percent'] = pdf.proposed_sublineage_parsimony/pdf.parent_parsimony
+    pdf['parsimony_percent'] = round(pdf.proposed_sublineage_parsimony/pdf.parent_parsimony,2)
     mdf['date'] = mdf.date.apply(get_date)
     def get_start_ends(row):
         parent_samples = set(t.get_leaves_ids(row.parent_nid))
@@ -75,7 +75,7 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
             return np.nan
     def get_regions_percents(nid):        
         try:
-            return ",".join([str(p) for p in mdf.loc[t.get_leaves_ids(nid)].country.value_counts(normalize=True)])
+            return ",".join([str(round(p,2)) for p in mdf.loc[t.get_leaves_ids(nid)].country.value_counts(normalize=True)])
         except:
             return np.nan
     pdf['child_regions'] = pdf.proposed_sublineage_nid.apply(get_regions)
@@ -110,7 +110,7 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
             if n.id == row.parent_nid:
                 break
             hapstring.append(",".join(n.mutations))
-        return ">".join(hapstring)
+        return ">".join(hapstring[::-1])
     pdf['mutations'] = pdf.apply(get_separating_mutations,axis=1)
     if gtf_file != None and fa_file != None:
         print("Performing translation.")
@@ -122,7 +122,7 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
                     break
                 aas = translation.get(n.id,[])
                 hapstring.append(",".join([aav.gene+":"+aav.aa for aav in aas]))
-            return ">".join(hapstring)
+            return ">".join(hapstring[::-1])
         print("Retrieving amino acid changes.")
         pdf['aa_changes'] = pdf.apply(get_separating_translation,axis=1)
     return pdf
