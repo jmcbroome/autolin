@@ -122,7 +122,7 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
     if gtf_file != None and fa_file != None:
         print("Performing translation and computing antibody binding scores.")
         translation = t.translate(fasta_file = fa_file, gtf_file = gtf_file)
-        calculator = bc.BindingCalculator(csv_or_url='SARS2_RBD_Ab_escape_maps/processed_data/escape_calculator_data.csv',source_lab='all',neutralizes_omicron='either',metric='sum of mutations at site',mutation_escape_strength=1)
+        calculator = bc.BindingCalculator(csv_or_url='SARS2_RBD_Ab_escape_maps/processed_data/escape_calculator_data.csv')
         hstrs = []
         cev = []
         pev = []
@@ -137,9 +137,9 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
                 if n.id == row.parent_nid:
                     past_parent = True
                 if past_parent:
-                    parent_changes.extend([a.aa_index for a in aas if a.gene == 'S'])
+                    parent_changes.extend([a.aa_index for a in aas if a.gene == 'S' and a.aa_index in calculator.sites])
                 else:
-                    child_changes.extend([a.aa_index for a in aas if a.gene == 'S'])
+                    child_changes.extend([a.aa_index for a in aas if a.gene == 'S' and a.aa_index in calculator.sites])
                     hapstring.append(",".join([aav.gene+":"+aav.aa for aav in aas]))
             hstr = ">".join(hapstring[::-1])
             child_escape = calculator.binding_retained(child_changes)
