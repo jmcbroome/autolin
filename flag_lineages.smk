@@ -29,17 +29,18 @@ rule add_metadata:
     output:
         "{tree}_metadata.viz.tsv"
     shell:
-        #code that loads trees with BTE lives in individual scripts to ensure proper release of memory dedicated to large trees.
         "python3 extract_annotations_viz.py {input[1]} {input[0]} {output}"
 
 rule generate_report:
     input:
         "{tree}.proposed.pb",
-        "{tree}.proposed.tsv"
+        "{tree}.proposed.tsv",
+        "{tree}.metadata.tsv"
     output:
         "{tree}.proposed.report.tsv"
     shell:
-        "python3 generate_lineage_report.py -i {input[0]} -p {input[1]} -o {output} -f {config[reference_genome]} -g {config[reference_gtf]}"
+        "python3 generate_lineage_report.py -i {input[0]} -p {input[1]} -o {output} -f {config[reference_genome]} -g {config[reference_gtf]} -m {input[2]}"
+
 rule propose:
     input:
         "{tree}.pb.gz",
@@ -48,19 +49,18 @@ rule propose:
     output:
         "{tree}.proposed.tsv",
         "{tree}.proposed.pb"
-    log:
-        "{tree}.log"
     run:
+        #due to the complexity of the number of arguments that may or may not be defaults to the proposal code, 
+        #instead of writing a shell command with a formatted string, we create the arguments Namespace programmatically and pass that to the proposal code
         args = argparser().parse_args(['--input',input[0]])
         d = vars(args)
         for k,v in config['lineage_params'].items():
             if k not in d.keys():
                 continue
-            elif v == "None":
-                d[k] = None
+            elif v in ['None','True','False']:
+                d[k] = eval(v)
             else:
                 d[k] = v
-        # d.update({k:v if v != "None" else k:None for k,v in  if k in d.keys()})
         d['aaweights'] = input[1]
         d['samples'] = input[2]
         d['verbose'] = True
@@ -78,7 +78,7 @@ rule unzip_metadata:
     shell:
         "gunzip -c {input} > {output}"
 
-rule compute_region_weights:
+rule compute_region_weights_and_dates:
     input:
         "{tree}.metadata.tsv"
     output:

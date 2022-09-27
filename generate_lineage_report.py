@@ -1,3 +1,6 @@
+import sys
+sys.path.append("./SARS2_RBD_Ab_escape_maps/")
+import bindingcalculator as bc
 import bte
 import pandas as pd
 import numpy as np
@@ -10,8 +13,8 @@ def argparser():
     parser.add_argument("-p", "--proposed", required=True, help='Path to the file containing dumped sublineage proposals.')
     parser.add_argument("-o", "--output", help='Name of the output table.',default=None,required=True)
     parser.add_argument("-m", "--metadata", help="Path to a metadata file matching the protobuf.",required=True)
-    parser.add_argument("-f", "--reference", default=None, help="Path to a reference fasta file. Use with -g to annotate amino acid changes in the expanded output.")
-    parser.add_argument("-g", "--gtf", default=None, help="Path to a reference gtf file. Use with -f to annotate amino acid changes in the expanded output.")
+    parser.add_argument("-f", "--reference", default=None, help="Path to a reference fasta file. Use with -g to annotate amino acid changes and immune escape in the expanded output.")
+    parser.add_argument("-g", "--gtf", default=None, help="Path to a reference gtf file. Use with -f to annotate amino acid changes and immune escape in the expanded output.")
     args = parser.parse_args()
     return args
 
@@ -20,12 +23,6 @@ def get_date(d):
         return dt.datetime.strptime(d,"%Y-%m-%d")
     except:
         return np.nan
-
-def is_successive(row):
-    if row.earliest_child > row.earliest_parent and row.latest_child > row.latest_parent:
-        return True
-    else:
-        return False
 
 def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
     mdf.set_index('strain',inplace=True)
@@ -66,7 +63,6 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
     pdf = pd.concat([pdf, applied_pdf], axis='columns')
     pdf = pdf.rename({0:'earliest_parent',1:'latest_parent',2:'earliest_child',3:'latest_child'},axis=1)
     pdf['log_score'] = np.log10(pdf.proposed_sublineage_score)
-    pdf["successive"] = pdf.apply(is_successive,axis=1)
     print("Tracking country composition.")
     def get_regions(nid):
         try:
@@ -90,11 +86,15 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
     print("Identifying host jumps.")
     pdf['host_jump'] = pdf.apply(host_jump,axis=1)
     print("Generating cov-spectrum URLs.")
-    def generate_url(nid):
-        mset = t.get_haplotype(nid)
-        url = "https://cov-spectrum.org/explore/World/AllSamples/AllTimes/variants?variantQuery=[" + str(len(mset)) + "-of:"
+    def generate_url(row):
+        child_mset = t.get_haplotype(row.proposed_sublineage_nid)
+        parent_mset = t.get_haplotype(row.parent_nid)
+        net_mset = child_mset - parent_mset
+        url = "https://cov-spectrum.org/explore/World/AllSamples/AllTimes/variants?variantQuery="
+        url += "nextcladePangoLineage:" + row.parent + "*&"
+        url += "[" + str(len(net_mset)) + "-of:" 
         start = True
-        for m in mset:
+        for m in net_mset:
             if start:
                 start = False
             else:
@@ -102,7 +102,7 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
             url += m
         url += ']'
         return url
-    pdf['link'] = pdf.proposed_sublineage_nid.apply(generate_url)
+    pdf['link'] = pdf.apply(generate_url,axis=1)
     print("Collecting mutations.")
     def get_separating_mutations(row):
         hapstring = []
@@ -112,19 +112,47 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
             hapstring.append(",".join(n.mutations))
         return ">".join(hapstring[::-1])
     pdf['mutations'] = pdf.apply(get_separating_mutations,axis=1)
+    def get_growth_score(row):
+        try:
+            time = (row.latest_child - row.earliest_child).weeks + 1
+            return np.sqrt(row.proposed_sublineage_size) / time
+        except:
+            return np.nan
+    pdf['growth_score'] = pdf.apply(get_growth_score,axis=1)
     if gtf_file != None and fa_file != None:
-        print("Performing translation.")
+        print("Performing translation and computing antibody binding scores.")
         translation = t.translate(fasta_file = fa_file, gtf_file = gtf_file)
-        def get_separating_translation(row):
+        calculator = bc.BindingCalculator(csv_or_url='SARS2_RBD_Ab_escape_maps/processed_data/escape_calculator_data.csv',source_lab='all',neutralizes_omicron='either',metric='sum of mutations at site',mutation_escape_strength=1)
+        hstrs = []
+        cev = []
+        pev = []
+        nev = []
+        for i, row in pdf.iterrows():
             hapstring = []
+            child_changes = []
+            parent_changes = []
+            past_parent = False
             for n in t.rsearch(row.proposed_sublineage_nid,True):
-                if n.id == row.parent_nid:
-                    break
                 aas = translation.get(n.id,[])
-                hapstring.append(",".join([aav.gene+":"+aav.aa for aav in aas]))
-            return ">".join(hapstring[::-1])
-        print("Retrieving amino acid changes.")
-        pdf['aa_changes'] = pdf.apply(get_separating_translation,axis=1)
+                if n.id == row.parent_nid:
+                    past_parent = True
+                if past_parent:
+                    parent_changes.extend([a.aa_index for a in aas if a.gene == 'S'])
+                else:
+                    child_changes.extend([a.aa_index for a in aas if a.gene == 'S'])
+                    hapstring.append(",".join([aav.gene+":"+aav.aa for aav in aas]))
+            hstr = ">".join(hapstring[::-1])
+            child_escape = calculator.binding_retained(child_changes)
+            parent_escape = calculator.binding_retained(parent_changes)
+            net_escape_gain = parent_escape - child_escape
+            hstrs.append(hstr)
+            cev.append(child_escape)
+            pev.append(parent_escape)
+            nev.append(net_escape_gain)
+        pdf['aa_changes'] = hstrs
+        pdf['sublineage_escape'] = cev
+        pdf['parent_escape'] = pev
+        pdf['net_escape_gain'] = nev   
     return pdf
 
 def main():

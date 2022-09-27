@@ -227,7 +227,7 @@ def argparser():
     parser.add_argument("-d", "--dump", help="Print proposed sublineages to a table.",default=None)
     parser.add_argument("-l", "--labels", help="Print lineage and sample associations to a table formatted for matUtils annotate -c.",default=None)
     parser.add_argument("-t", "--distinction", help="Require that lineage proposals have at least t mutations distinguishing them from the parent lineage or root.",type=int,default=1)
-    parser.add_argument("-m", "--minsamples", help="Require that each lineage proposal describe at least m samples.", type=int, default=10)
+    parser.add_argument("-m", "--minsamples", help="Require that each lineage proposal represent at least m total sample weight (without special weighting, the number of samples).", type=int, default=10)
     parser.add_argument("-w", "--mutweights", help="Path to an optional two (or three) column space-delimited containing mutations and weights (and nodes) to use to weight lineage choices.",default=None)
     parser.add_argument("-y", "--aaweights", help="Path to an optional three column space-delimited containing amino acid changes and weights to use to weight lineage choices. Requires --gtf and --reference to be set. Changes not included will be weighted as 1.",default=None)
     parser.add_argument("-g", "--gene", help='Consider only mutations in the indicated gene. Requires that --gtf and --reference be set.', default=None)
@@ -239,8 +239,7 @@ def argparser():
     parser.add_argument("-v","--verbose",help='Print status updates.',action='store_true')
     parser.add_argument("-a","--annotation",help='Choose a specific lineage, and its sublineages, to propose new sublineages for.',default=None)
     parser.add_argument("-p","--samples",help='Path to a space-delimited file containing samples and weights in the first and second columns. If used, samples not included in this file will be ignored.',default=None)
-    args = parser.parse_args()
-    return args
+    return parser
 
 def propose(args):
     t = bte.MATree(args.input)
@@ -297,7 +296,7 @@ def propose(args):
         if args.verbose:
             print("{} outer annotations found in the tree; identifying sublineages.".format(len(annotes)))
     if args.verbose:
-        print("Tree contains {} annotated lineages initially ({} nodes disregarded to prevent retroactive parent assignment).".format(len(annotes),len(global_used_nodes)),file=sys.stderr)
+        print("Tree contains {} annotated lineages initially ({} nodes disregarded to prevent retroactive parent assignment).".format(len(annotes),len(global_used_nodes)))
     #keep going until the length of the annotation dictionary doesn't change.
     if args.dump != None:
         print("parent\tparent_nid\tproposed_sublineage\tproposed_sublineage_nid\tproposed_sublineage_score\tproposed_sublineage_size",file=dumpf)
@@ -320,14 +319,21 @@ def propose(args):
         used_nodes = global_used_nodes.copy()
         for ann,nid in outer_annotes.items():
             serial = 0
+            rbfs = t.breadth_first_expansion(nid, True) #takes the name
+            if len(sample_weights) == 0:
+                parent_leaf_count = len([n for n in rbfs if n.is_leaf()])
+            else:
+                parent_leaf_count = len([n for n in rbfs if n.id in sample_weights])
+            if parent_leaf_count == 0:
+                if args.verbose:
+                    print("No samples descended from {} have weight; continuing".format(ann))
+                continue
             current_child_lineages = {k:v for k,v in annotes.items() if ann in ann_net.get(k,[])}
             labeled = global_labeled.copy()
             for lin, cnid in current_child_lineages.items():
                 for s in t.get_leaves_ids(cnid):
                     labeled.add(s)
-            rbfs = t.breadth_first_expansion(nid, True) #takes the name
             if len(current_child_lineages) > 0 and args.verbose:
-                parent_leaf_count = len([n for n in rbfs if n.is_leaf()])
                 print("Found {} child lineages preexisting for lineage {}; {} samples prelabeled from {} total ({}%)".format(len(current_child_lineages), ann, len(labeled)-len(global_labeled), parent_leaf_count, 100*(len(labeled)-len(global_labeled))/parent_leaf_count))
             # print("DEBUG: Checking annotation {} with {} descendent nodes.".format(nid, len(rbfs)))
             dist_root = dists_to_root(t, t.get_node(nid), mutweights) #needs the node object, not just the name
@@ -394,7 +400,8 @@ def propose(args):
                     print("{}\t{}".format(ann,l),file=f)
 
 def main():
-    args = argparser()
+    parser = argparser()
+    args = parser.parse_args()
     propose(args)
     
 if __name__ == "__main__":
