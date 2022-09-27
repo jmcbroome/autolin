@@ -4,13 +4,14 @@ reference_gtf: "./reference/ncbiGenes.gtf"
 genbank: "./reference/hu1.gb"
 lineage_params:
   floor: 100
-  annotation: None
+  annotation: B.1.1.529
   missense: True
-  gene: None
+  gene: S
   minsamples: 15
   distinction: 1
   recursive: True
   cutoff: 0.99
+  earliest_date: '2022-06-30'
   weight_params:
     escape_weighting: 100
     country_weighting: 10

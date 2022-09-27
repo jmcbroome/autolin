@@ -52,9 +52,15 @@ rule propose:
         "{tree}.log"
     run:
         args = argparser().parse_args(['--input',input[0]])
-        print(type(args))
         d = vars(args)
-        d.update({k:v for k,v in config['lineage_params'].items() if k in d.keys()})
+        for k,v in config['lineage_params'].items():
+            if k not in d.keys():
+                continue
+            elif v == "None":
+                d[k] = None
+            else:
+                d[k] = v
+        # d.update({k:v if v != "None" else k:None for k,v in  if k in d.keys()})
         d['aaweights'] = input[1]
         d['samples'] = input[2]
         d['verbose'] = True
@@ -85,14 +91,14 @@ rule compute_region_weights:
             except:
                 return np.nan
         mdf['Date'] = mdf.date.apply(get_dt)
-        target = mdf[mdf.Date > dt.datetime(month=6,day=30,year=2022)]
+        target = mdf[mdf.Date >= dt.datetime.strptime(config['lineage_params']['earliest_date'])]
         scale = config['lineage_params']['weight_params']['country_weighting']
         invweights = 1/target.country.value_counts(normalize=True)
         to_use = (invweights-invweights.min())/(invweights.max()-invweights.min()) * scale + 1
         with open(output[0],"w+") as outf:
             for i,d in target.iterrows():
                 print(d.strain + "\t" + str(invweights[d.country]),file=outf)        
-        print('done')
+
 rule compute_escape_weights:
     output:
         "escape_weights.tsv"
