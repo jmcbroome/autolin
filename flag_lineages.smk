@@ -1,10 +1,11 @@
 import sys
-print(sys.version)
 from pathlib import Path
 sys.path.insert(0, Path(workflow.basedir).parent.as_posix())
 import bte
 from propose_sublineages import propose, argparser
 import pandas as pd
+import datetime as dt
+import numpy as np
 
 configfile: "config.yaml"
 
@@ -48,12 +49,12 @@ rule propose:
         "{tree}.proposed.tsv",
         "{tree}.proposed.pb"
     log:
-        "{tree}_{config[lineage_params][logfile]}"
+        "{tree}.log"
     run:
-        args = argparser().parse_args([])
+        args = argparser().parse_args(['--input',input[0]])
+        print(type(args))
         d = vars(args)
-        d.update({k:v for k,v in config._lineage_params.items() if k in d.keys()})
-        d['input'] = input[0]
+        d.update({k:v for k,v in config['lineage_params'].items() if k in d.keys()})
         d['aaweights'] = input[1]
         d['samples'] = input[2]
         d['verbose'] = True
@@ -61,7 +62,7 @@ rule propose:
         d['gtf'] = config['reference_gtf']
         d['dump'] = output[0]
         d['output'] = output[1]
-        propose(argd)
+        propose(args)
 
 rule unzip_metadata:
     input:
@@ -88,17 +89,16 @@ rule compute_region_weights:
         scale = config['lineage_params']['weight_params']['country_weighting']
         invweights = 1/target.country.value_counts(normalize=True)
         to_use = (invweights-invweights.min())/(invweights.max()-invweights.min()) * scale + 1
-        with open(output[0]+"_sample_weights.txt","w+") as outf:
+        with open(output[0],"w+") as outf:
             for i,d in target.iterrows():
                 print(d.strain + "\t" + str(invweights[d.country]),file=outf)        
-
+        print('done')
 rule compute_escape_weights:
     output:
         "escape_weights.tsv"
     run:
         with open("escape_weights.tsv","w+") as wout:
             edf = pd.read_csv(config['escape_data'])
-            wvc = edf.groupby("label_site").site_mean_escape.mean()
+            wvc = edf.groupby("label_site").site_total_escape.mean()
             for ls in wvc.index:
                 print("\t".join([str(v) for v in ['S', ls[1:]+ls[0], 1 + wvc[ls] * config['lineage_params']['weight_params']['escape_weighting']]]), file=wout)
-
