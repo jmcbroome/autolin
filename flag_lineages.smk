@@ -17,7 +17,7 @@ rule taxonium:
         "{tree}.proposed.pb",
         "{tree}_metadata.viz.tsv"
     output:
-        "lineageview.jsonl.gz"
+        "{tree}.jsonl.gz"
     shell:
         "usher_to_taxonium -i {input[0]} -o {output} -m {input[1]} -c auto_annotation,pango_lineage_usher,country -g {config[genbank]}"
 
@@ -43,12 +43,12 @@ rule propose:
     input:
         "{tree}.pb.gz",
         "escape_weights.tsv",
-        "sample_weights.tsv"
+        "{tree}.sample_weights.tsv"
     output:
         "{tree}.proposed.tsv",
         "{tree}.proposed.pb"
     log:
-        "{config[lineage_params][logfile]}"
+        "{tree}_{config[lineage_params][logfile]}"
     run:
         args = argparser().parse_args([])
         d = vars(args)
@@ -75,7 +75,7 @@ rule compute_region_weights:
     input:
         "{tree}.metadata.tsv"
     output:
-        "sample_weights.tsv"
+        "{tree}.sample_weights.tsv"
     run:
         mdf = pd.read_csv(input[0],sep='\t')
         def get_dt(dstr):
@@ -88,7 +88,7 @@ rule compute_region_weights:
         scale = config['lineage_params']['weight_params']['country_weighting']
         invweights = 1/target.country.value_counts(normalize=True)
         to_use = (invweights-invweights.min())/(invweights.max()-invweights.min()) * scale + 1
-        with open("sample_weights.txt","w+") as outf:
+        with open(output[0]+"_sample_weights.txt","w+") as outf:
             for i,d in target.iterrows():
                 print(d.strain + "\t" + str(invweights[d.country]),file=outf)        
 
