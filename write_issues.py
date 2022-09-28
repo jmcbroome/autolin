@@ -83,17 +83,22 @@ def main():
     mdf = pd.read_csv(args.metadata,sep='\t').set_index('strain')
     i = 0
     for ind,d in df.sort_values(args.sort).iterrows():
+        print("Recording output for {}".format(d.proposed_sublineage))
         if i >= args.number:
             break
+        print("Writing report...")
         write_report(d, args.prefix)
+        print("Writing samples...")
         write_sample_list(t, mdf, d.proposed_sublineage_nid, d.proposed_sublineage, args.prefix)
-        submeta_name = d.proposed_sublineage + "_metadata.tsv"
-        sdf = mdf.loc[t.get_leaves_ids(d.proposed_sublineage_nid)]
-        if sdf.shape[0] > 0:
-            sdf.reset_index().to_csv(submeta_name,sep='\t',index=False)
-            write_json(t, d.proposed_sublineage_nid, d.parent_nid, d.proposed_sublineage, args.prefix, args.jsonsize, submeta_name)
-        else:
-            write_json(t, d.proposed_sublineage_nid, d.parent_nid, d.proposed_sublineage, args.prefix, args.jsonsize)
+        # submeta_name = d.proposed_sublineage + "_metadata.tsv"
+        # print("Writing json...")
+        # sdf = mdf.loc[t.get_leaves_ids(d.proposed_sublineage_nid)]
+        # print("Submeta extracted; proceeding to write.")
+        # if sdf.shape[0] > 0:
+            # sdf.reset_index().to_csv(submeta_name,sep='\t',index=False)
+        # write_json(t, d.proposed_sublineage_nid, d.parent_nid, d.proposed_sublineage, args.prefix, args.jsonsize, args.metadata)
+        # else:
+            # write_json(t, d.proposed_sublineage_nid, d.parent_nid, d.proposed_sublineage, args.prefix, args.jsonsize)
         i += 1
     with open(tn+".issues.log","w+") as outf:
         print("Produced files for {} lineage proposals.".format(args.number),file=outf)
