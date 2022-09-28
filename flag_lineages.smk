@@ -101,7 +101,7 @@ rule compute_region_weights_and_dates:
             except:
                 return np.nan
         mdf['Date'] = mdf.date.apply(get_dt)
-        target = mdf[mdf.Date >= dt.datetime.strptime(config['lineage_params']['earliest_date'])]
+        target = mdf[mdf.Date >= dt.datetime.strptime(config['lineage_params']['earliest_date'], "%Y-%m-%d")]
         scale = config['lineage_params']['weight_params']['country_weighting']
         invweights = 1/target.country.value_counts(normalize=True)
         to_use = (invweights-invweights.min())/(invweights.max()-invweights.min()) * scale + 1
