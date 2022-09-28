@@ -9,14 +9,15 @@ lineage_params:
   gene: S #consider only mutations within the indicated gene as part of the haplotype. Set to None to use the whole genome.
   minsamples: 15 #minimum sample weight. Default weighting scheme is 1 per sample (more for underrepresented countries when country_weighting is used).
   distinction: 1 #minimum mutation weight. Default weighting scheme is 1 per mutation (more for mutations associated with immune escape if escape_weighting is used).
-  recursive: True #allow proposal of additional sublineages from newly proposed lineages. 
+  recursive: False #allow proposal of additional sublineages from newly proposed lineages. 
   cutoff: 0.99 #stop adding new serial (exclusive) lineage annotations when this percentage of samples is labeled.
   earliest_date: '2022-08-30' #ignore all samples before this date. Set to 2019-12-01 to examine the entire pandemic.
   weight_params:
     escape_weighting: 100 #Higher values means mutations associated with immune escape by the Bloom lab DMS are given higher weight. Set to 0 to disable escape weighting. 
-    country_weighting: 10 #Higher values means samples from underrepresented countries count more. Set to 0 to disable country weighting. 
+    country_weighting: 5 #Higher values means samples from underrepresented countries count more. Set to 0 to disable country weighting. 
 reporting_params:
   sort_by: "proposed_sublineage_score" #sort the results by this column.
   number: 3 #report the top X lineages.
   json_size: 4000 #output jsons will include at most this many samples.
   prefix: "proposed_" #set a prefix for markdown and associated file output.
+  samples_named: 15 #name up to this many samples within the text of the report, including the oldest and youngest samples. 

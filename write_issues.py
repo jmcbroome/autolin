@@ -4,6 +4,7 @@ import bte
 import numpy as np
 import os
 from github import Github
+import glob
 
 def argparser():
     parser = argparse.ArgumentParser(description="Write markdown issues representing the top N proposed sublineages of a report.")
@@ -15,14 +16,22 @@ def argparser():
     parser.add_argument('-p', "--prefix", default='proposal_', help="String to use as prefixes for output files.")
     parser.add_argument("-j", "--jsonsize", default=4000, type=int, help="Maximum size of the json output for each sublineage.")
     parser.add_argument("-l", "--local", action='store_true', help="Set to write issues to local files only. Default posts issues to https://github.com/jmcbroome/auto-pango-designation/issues")
+    parser.add_argument("-c", "--samplecount", default=15, type=int, help="Include up to this many sample names in the text of the report proposing the lineage.")
+    parser.add_argument("-k", "--skip", action='store_true', help="Use to skip reporting any lineages that overlap with sample sets enumerated in *_samples.txt files in this directory.")
     args = parser.parse_args()
     return args
+ 
+def get_date(d):
+    try:
+        return dt.datetime.strptime(d,"%Y-%m-%d")
+    except:
+        return np.nan
 
-def write_report(row, prefix):
+def write_report(row, prefix, samplenames, samplecount):
     fstr = []
     fstr.append("{} is a proposed child lineage of {} including {} samples.".format(row.proposed_sublineage, row.parent, row.proposed_sublineage_size))
     if row.earliest_child != np.nan and row.latest_child != np.nan:
-        fstr.append("The earliest sample was found on {} and the latest on {}.".format(row.earliest_child, row.latest_child))
+        fstr.append("The earliest sample is {} and was found on {}, and the latest is {} and was found on {}.".format(samplenames[0], row.earliest_child, samplenames[1], row.latest_child))
     else:
         fstr.append("Dates could not be identified for these samples.")
     if row.child_regions != np.nan:
@@ -50,19 +59,40 @@ def write_report(row, prefix):
     if row.host_jump:
         fstr.append("It represents a zoonotic event!")
     fstr.append("View it on [cov-spectrum]({})".format(row.link))
+    fstr.append("The following samples are included: ")
+    for s in samplenames:
+        fstr.append(s)
+    remainder = samplecount - len(samplenames)
+    if remainder > 0:
+        fstr.append("As well as {} additional samples.".format(remainder))
     return fstr
 
-def write_sample_list(t, mdf, nid, name, prefix):
+def write_sample_list(t, mdf, nid, name, prefix, count, skipset, use_skip):
+    selection = []
     with open(prefix + name + "_samples.txt","w+") as outf:
-        for s in t.get_leaves_ids(nid):
-            try:
-                row = mdf.loc[s]
-                country = row.country
-                date = row.date
-            except:
-                country = np.nan
-                date = np.nan
-            print('\t'.join([str(v) for v in [s, country, date]]), file = outf)
+        samples = t.get_leaves_ids(nid)
+        if use_skip:
+            if any([s for s in samples in samset]):
+                print("Proposal {} overlaps with existing proposals; skipping")
+                return [], len(samples)
+        metadata = mdf[mdf.strain.isin(samples)]
+        metadata.apply(lambda row: print("\t".join([str(v) for v in row.strain, row.country, row.date]),file=outf))
+        selection.append(metadata.iloc[0].strain)
+        selection.append(metadata.iloc[-1].strain)
+        target = min(count, mdf.shape[0]-2)
+        if target > 0:
+            selection.extend(mdf.iloc[1:-1,:].strain.sample(target,replace=False))
+    return selection, len(samples)
+
+def get_current_proposed_covered():
+    samset = set()
+    sfiles = glob.glob("*_samples.txt")
+    for f in sfiles:
+        with open(f) as inf:
+            for entry in inf:
+                sample, country, date = entry.strip().split()
+                samset.add(sample)
+    return samset
 
 def write_json(t, nid, parent_nid, name, prefix, size, metafile = None):
     outn = prefix + name + ".json"
@@ -83,14 +113,26 @@ def main():
     t = bte.MATree(args.tree)
     tn = args.tree.split(".")[0]
     df = pd.read_csv(args.input,sep='\t')
-    mdf = pd.read_csv(args.metadata,sep='\t').set_index('strain')
+    mdf = pd.read_csv(args.metadata,sep='\t')
+    mdf['date'] = mdf.date.apply(get_date)
+    mdf.sort_values('date',inplace=True)
+    samset = get_current_proposed_covered()
+    if len(samset) == 0:
+        print("Found no current samples in *_samples.txt files.")
+    else:
+        print("Found {} samples in *_samples.txt files; fresh proposals containing any of these samples will not be reported as new lineages.".format(len(samset)))
     i = 0
     for ind,d in df.sort_values(args.sort).iterrows():
-        print("Recording output for {}".format(d.proposed_sublineage))
         if i >= args.number:
             break
+        print("Recording output for {}".format(d.proposed_sublineage))
+        print("Writing samples...")
+        selected_samples, scount = write_sample_list(t, mdf, d.proposed_sublineage_nid, d.proposed_sublineage, args.prefix, args.samplecount, samset, args.skip)
+        if len(selected_samples) == 0:
+            print("{} has no dates or includes samples already covered by open proposals; skipping.".format(d.proposed_sublineage))
+            continue
         print("Writing report...")
-        report = write_report(d, args.prefix)
+        report = write_report(d, args.prefix, selected_samples, scount)
         if args.local:
             with open(prefix + d.proposed_sublineage + ".md","w+") as outf:
                 print("\n".join(report),file=outf)
@@ -99,9 +141,6 @@ def main():
             r = g.get_user().get_repo("auto-pango-designation")
             titlestring = "Sublineage {} of {}".format(row.proposed_sublineage, row.parent)
             r.create_issue(title=titlestring,body=report)
-            
-        print("Writing samples...")
-        write_sample_list(t, mdf, d.proposed_sublineage_nid, d.proposed_sublineage, args.prefix)
         # submeta_name = d.proposed_sublineage + "_metadata.tsv"
         # print("Writing json...")
         # sdf = mdf.loc[t.get_leaves_ids(d.proposed_sublineage_nid)]

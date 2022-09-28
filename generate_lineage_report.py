@@ -114,7 +114,7 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
     pdf['mutations'] = pdf.apply(get_separating_mutations,axis=1)
     def get_growth_score(row):
         # try:
-        time = (row.latest_child - row.earliest_child).weeks + 1
+        time = (row.latest_child - row.earliest_child).week + 1
         return np.sqrt(row.proposed_sublineage_size) / time
         # except:
             # return np.nan
