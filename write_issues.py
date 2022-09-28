@@ -2,6 +2,8 @@ import argparse
 import pandas as pd
 import bte
 import numpy as np
+import os
+from github import Github
 
 def argparser():
     parser = argparse.ArgumentParser(description="Write markdown issues representing the top N proposed sublineages of a report.")
@@ -12,27 +14,28 @@ def argparser():
     parser.add_argument("-s", "--sort", default='proposed_sublineage_score', help="Choose a column to sort by.")
     parser.add_argument('-p', "--prefix", default='proposal_', help="String to use as prefixes for output files.")
     parser.add_argument("-j", "--jsonsize", default=4000, type=int, help="Maximum size of the json output for each sublineage.")
+    parser.add_argument("-l", "--local", action='store_true', help="Set to write issues to local files only. Default posts issues to https://github.com/jmcbroome/auto-pango-designation/issues")
     args = parser.parse_args()
     return args
 
 def write_report(row, prefix):
-    outf = open(prefix + row.proposed_sublineage + ".md","w+")
-    print("{} is a proposed child lineage of {} including {} samples.".format(row.proposed_sublineage, row.parent, row.proposed_sublineage_size),file=outf)
+    fstr = []
+    fstr.append("{} is a proposed child lineage of {} including {} samples.".format(row.proposed_sublineage, row.parent, row.proposed_sublineage_size))
     if row.earliest_child != np.nan and row.latest_child != np.nan:
-        print("The earliest sample was found on {} and the latest on {}.".format(row.earliest_child, row.latest_child),file=outf)
+        fstr.append("The earliest sample was found on {} and the latest on {}.".format(row.earliest_child, row.latest_child))
     else:
-        print("Dates could not be identified for these samples.")
+        fstr.append("Dates could not be identified for these samples.")
     if row.child_regions != np.nan:
         ccount = row.child_regions.count(",") + 1
         common = row.child_regions.split(",")[0]
         commonprop = round(float(row.child_region_percents.split(",")[0])*100,2)
         if ccount == 1:
-            print("It is found in {} only.".format(row.child_regions),file=outf)
+            fstr.append("It is found in {} only.".format(row.child_regions))
         else:
-            print("It is found in {} countries, most commonly {} where {} of its samples were sequenced.".format(ccount, common, commonprop),file=outf)
+            fstr.append("It is found in {} countries, most commonly {} where {} of its samples were sequenced.".format(ccount, common, commonprop))
     else:
-        print("Countries could not be identified for these samples.",file=outf)
-    print("{} has a Bloom Lab escape score of {}, -{} over the parent lineage.".format(row.proposed_sublineage, row.sublineage_escape, row.net_escape_gain),file=outf)
+        fstr.append("Countries could not be identified for these samples.")
+    fstr.append("{} has a Bloom Lab escape score of {}, -{} over the parent lineage.".format(row.proposed_sublineage, row.sublineage_escape, row.net_escape_gain))
     spikes = []
     total = 0
     for n in row.aa_changes.split(">"):
@@ -41,13 +44,13 @@ def write_report(row, prefix):
                 spikes.append(m)
             total += 1
     if len(spikes) == 0:
-        print("It is not defined by any spike protein changes. It has {} defining protein changes overall.".format(total),file=outf)
+        fstr.append("It is not defined by any spike protein changes. It has {} defining protein changes overall.".format(total))
     else:
-        print("It is defined by the following spike protein changes: {}. There are {} defining protein changes overall.".format(",".join(spikes), total),file=outf)
+        fstr.append("It is defined by the following spike protein changes: {}. There are {} defining protein changes overall.".format(",".join(spikes), total))
     if row.host_jump:
-        print("It represents a zoonotic event!",file=outf)
-    print("View it on [cov-spectrum]({})".format(row.link),file=outf)
-    outf.close()
+        fstr.append("It represents a zoonotic event!")
+    fstr.append("View it on [cov-spectrum]({})".format(row.link))
+    return fstr
 
 def write_sample_list(t, mdf, nid, name, prefix):
     with open(prefix + name + "_samples.txt","w+") as outf:
@@ -87,7 +90,16 @@ def main():
         if i >= args.number:
             break
         print("Writing report...")
-        write_report(d, args.prefix)
+        report = write_report(d, args.prefix)
+        if args.local:
+            with open(prefix + d.proposed_sublineage + ".md","w+") as outf:
+                print("\n".join(report),file=outf)
+        else:
+            g = github(os.getenv("API_KEY"))
+            r = g.get_user().get_repo("auto-pango-designation")
+            titlestring = "Sublineage {} of {}".format(row.proposed_sublineage, row.parent)
+            r.create_issue(title=titlestring,body=report)
+            
         print("Writing samples...")
         write_sample_list(t, mdf, d.proposed_sublineage_nid, d.proposed_sublineage, args.prefix)
         # submeta_name = d.proposed_sublineage + "_metadata.tsv"
