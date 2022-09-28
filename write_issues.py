@@ -7,10 +7,10 @@ def argparser():
     parser.add_argument("-i", "--input", required=True, help='Path to the lineage report (generate_lineage_report.py) to generate markdown issues from.')
     parser.add_argument("-t", "--tree", required=True, help='Path to the tree-containing protobuf the lineage report was generated from.')
     parser.add_argument("-m", "--metadata", required=True, help='Path to the metadata file corresponding to the tree the report was generate from.')
-    parser.add_argument('-n', "--number", default=3, help="Write markdown reports for the top n lineages.")
+    parser.add_argument('-n', "--number", default=3, type=int, help="Write markdown reports for the top n lineages.")
     parser.add_argument("-s", "--sort", default='proposed_sublineage_score', help="Choose a column to sort by.")
     parser.add_argument('-p', "--prefix", default='proposal_', help="String to use as prefixes for output files.")
-    parser.add_argument("-j", "--jsonsize", default=4000, help="Maximum size of the json output for each sublineage.")
+    parser.add_argument("-j", "--jsonsize", default=4000, type=int, help="Maximum size of the json output for each sublineage.")
     args = parser.parse_args()
     return args
 
@@ -58,7 +58,7 @@ def write_sample_list(t, mdf, nid, name, prefix):
             except:
                 country = np.nan
                 date = np.nan
-            print('\t'.join([str(v) for v in [s, country, date]]) file = outf)
+            print('\t'.join([str(v) for v in [s, country, date]]), file = outf)
 
 def write_json(t, nid, parent_nid, name, prefix, size, metafile = None):
     outn = prefix + name + ".json"
@@ -80,7 +80,10 @@ def main():
     tn = args.tree.split(".")[0]
     df = pd.read_csv(args.input,sep='\t')
     mdf = pd.read_csv(args.metadata,sep='\t').set_index('strain')
-    for i,d in df.sort_values(args.sort)[:args.number]:
+    i = 0
+    for ind,d in df.sort_values(args.sort).iterrows():
+        if i >= args.number:
+            break
         write_report(d, args.prefix)
         write_sample_list(t, mdf, d.proposed_sublineage_nid, d.proposed_sublineage, args.prefix)
         submeta_name = d.proposed_sublineage + "_metadata.tsv"
@@ -90,7 +93,8 @@ def main():
             write_json(t, d.proposed_sublineage_nid, d.parent_nid, d.proposed_sublineage, args.prefix, args.jsonsize, submeta_name)
         else:
             write_json(t, d.proposed_sublineage_nid, d.parent_nid, d.proposed_sublineage, args.prefix, args.jsonsize)
-    with open(tn+"_issues.log","w+") as outf:
+        i += 1
+    with open(tn+".issues.log","w+") as outf:
         print("Produced files for {} lineage proposals.".format(args.number),file=outf)
 
 if __name__ == "__main__":
