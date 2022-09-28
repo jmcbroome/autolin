@@ -1,6 +1,7 @@
 import argparse
 import pandas as pd
 import bte
+import numpy as np
 
 def argparser():
     parser = argparse.ArgumentParser(description="Write markdown issues representing the top N proposed sublineages of a report.")
@@ -45,7 +46,7 @@ def write_report(row, prefix):
         print("It is defined by the following spike protein changes: {}. There are {} defining protein changes overall.".format(",".join(spikes), total),file=outf)
     if row.host_jump:
         print("It represents a zoonotic event!",file=outf)
-    print("View it on cov-spectrum: {}",file=outf)
+    print("View it on [cov-spectrum]({})".format(row.link),file=outf)
     outf.close()
 
 def write_sample_list(t, mdf, nid, name, prefix):
@@ -70,9 +71,9 @@ def write_json(t, nid, parent_nid, name, prefix, size, metafile = None):
     else:
         parents_to_use = parent_samples
     if metafile != None:
-        t.write_json(outn.encode("UTF-8"), samples = samples_to_use + parents_to_use, title = name.encode("UTF-8"), metafiles = [metafile])
+        t.write_json(outn, samples = samples_to_use + parents_to_use, title = name, metafiles = [metafile])
     else:
-        t.write_json(outn.encode("UTF-8"), samples = samples_to_use + parents_to_use, title = name.encode("UTF-8"), metafiles = [])
+        t.write_json(outn, samples = samples_to_use + parents_to_use, title = name, metafiles = [])
 
 def main():
     args = argparser()
