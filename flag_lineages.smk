@@ -22,6 +22,16 @@ rule taxonium:
     shell:
         "usher_to_taxonium -i {input[0]} -o {output} -m {input[1]} -c auto_annotation,pango_lineage_usher,country -g {config[genbank]}"
 
+rule write_issues:
+    input:
+        "{tree}.proposed.tsv",
+        "{tree}.proposed.pb",
+        "{tree}_metadata.viz.tsv"
+    output:
+        "{tree}_issues.log"
+    shell:
+        "python3 write_issues.py -i {input[0]} -t {input[1]} -m {input[2]} -n {config[reporting_params][number]} -s {config[reporting_params][sort_by]} -p {config[reporting_params][prefix]} -j {config[reporting_params][json_size]}"
+
 rule add_metadata:
     input:
         "{tree}.metadata.tsv",

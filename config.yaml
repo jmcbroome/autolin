@@ -18,3 +18,5 @@ lineage_params:
 reporting_params:
   sort_by: "proposed_sublineage_score" #sort the results by this column.
   number: 3 #report the top X lineages.
+  json_size: 4000 #output jsons will include at most this many samples.
+  prefix: "proposed_" #set a prefix for markdown and associated file output.
