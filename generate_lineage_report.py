@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 import datetime as dt
 import argparse
+from urllib import parse
 
 def argparser():
     parser = argparse.ArgumentParser(description="Compute detailed lineage reports for all existing lineages in the tree.")
@@ -90,9 +91,9 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
         child_mset = t.get_haplotype(row.proposed_sublineage_nid)
         parent_mset = t.get_haplotype(row.parent_nid)
         net_mset = child_mset - parent_mset
-        url = "https://cov-spectrum.org/explore/World/AllSamples/AllTimes/variants?variantQuery="
-        url += "nextcladePangoLineage:" + row.parent + "*&"
-        url += "[" + str(len(net_mset)) + "-of:" 
+        mset_str = "[{}-of:{}]".format(len(net_mset), ", ".join(list(net_mset)))
+        query = parse.urlencode([('variantQuery','nextcladePangoLineage:' + row.parent + "*&" + mset_str)])
+        url = "https://cov-spectrum.org/explore/World/AllSamples/AllTimes/variants?" + query
         start = True
         for m in net_mset:
             if start:
