@@ -94,14 +94,6 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
         mset_str = "[{}-of:{}]".format(len(net_mset), ", ".join(list(net_mset)))
         query = parse.urlencode([('variantQuery','nextcladePangoLineage:' + row.parent + "*&" + mset_str)])
         url = "https://cov-spectrum.org/explore/World/AllSamples/AllTimes/variants?" + query
-        start = True
-        for m in net_mset:
-            if start:
-                start = False
-            else:
-                url += ', '
-            url += m
-        url += ']'
         return url
     pdf['link'] = pdf.apply(generate_url,axis=1)
     print("Collecting mutations.")
