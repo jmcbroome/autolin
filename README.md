@@ -1,10 +1,68 @@
 # automate-lineages-prototype
 
+## Overview
+
 This repository contains an implementation of a concept for automated lineage annotation for parsimony phylogenetics, with a specific
 emphasis on SARS-CoV-2. 
 
 Robust viral lineage identification is a critical problem. Many epidemiological analyses are reliant on abstracting a viral phylogeny
-into genotype categories, or lineages, such as Omicron and Delta. However, lineages are often identified in a haphazard fashion, with individual researchers scrutinizing the phylogeny manually and proposing new lineages individually, in a way informed by their own biases and focuses. Here, I propose a simple alternative lineage identification concept based on genotype representation.
+into genotype categories, or lineages, such as Omicron and Delta. However, lineages are often identified in a haphazard fashion, with individual researchers scrutinizing the phylogeny manually and proposing new lineages individually, in a way informed by their own biases and focuses. Here, I have designed a simple alternative lineage identification concept based on genotype representation.
+
+## Installation
+
+We rely on conda for managing environmental dependencies.
+
+```
+git clone --recurse-submodules https://github.com/jmcbroome/automate-lineages-prototype
+cd SARS2_RBD_Ab_escape_maps
+git lfs pull
+cd ..
+conda create -f env.yml
+conda activate autolin
+```
+
+## Pipeline
+
+This repository contains a snakemake pipeline that organizes and runs the wrapper scripts and processing to go from a fresh tree and metadata file all the way to posted issues on https://github.com/jmcbroome/auto-pango-designation/issues.
+
+It recognizes the tree name as a wildcard from the snakemake command. Input data should be formatted as follows:
+```
+{tree}.pb.gz
+{tree}.metadata.tsv
+```
+The command given to snakemake defines this wildcard. For example, the command 
+
+```
+snakemake -c1 -s flag_lineages.smk mytree.proposed.report.tsv
+```
+
+Will look for the input files
+
+```
+mytree.pb.gz
+mytree.metadata.tsv.gz
+```
+
+And perform the pipeline. Parameters for lineage calling are found in config.yaml, including comments describing their effects.
+
+Other useful outputs supported by the pipeline include a Taxonium view jsonl with annotations and calling scripts that automatically post issues to github.
+
+```
+snakemake -c1 -s flag_lineages.smk mytree.jsonl.gz
+snakemake -c1 -s flag_lineages.smk mytree.issues.log
+```
+
+The fastest way to get going is to download the latest tree.
+
+```
+wget http://hgdownload.soe.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/public-latest.all.masked.pb.gz
+wget http://hgdownload.soe.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/public-latest.metadata.tsv.gz
+snakemake -c1 -s flag_lineages.smk public-latest.all.masked.proposed.report.tsv
+```
+
+Alternatively, the user may use any of the scripts directly as CLI tools, as they all use argparse or otherwise consider command line arguments. Please see the individual help messages for these scripts.
+
+## Mathematical Underpinnings
 
 Intuitively, to generate a single lineage annotation, we identify
 the node on the tree with the highest scaled mean genotype representation. Stating that a sample is descended from a node conveys something about the genotype of that samples. For each sample descended from a given node, that node
@@ -30,26 +88,6 @@ Critically, this system allows for flexible alterations of sample or mutational 
 
 This does not invalidate current approaches or lineages defined under other systems, but instead augments those lineage systems
 by proposing new sublineages automatically. 
-
-## Implementation
-
-The prototype implementation in "propose_sublineages.py" is dependent on [BTE](https://github.com/jmcbroome/BTE). You can install BTE from bioconda.
-
-```
-conda install -c bioconda bte
-```
-
-This prototype is in very early stages and is likely buggy. It takes a tree in the MAT format, usually downloaded from [here](http://hgdownload.soe.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/). This repository also includes a small test MAT containing only 
-10,000 samples.
-
-Currently available parameters are
-- clear: remove all current annotations from the tree. If not used, new sublineages will be proposed where possible from current lineages.
-- recursive: add additional sublineages to any new proposed sublineages where possible. If not used, sublineages to existing lineages will be generated only.
-- dump: write a table containing proposed sublineages.
-- output: write a MAT protobuf containing all proposed sublineages.
-- labels: write a table containing samples and their outermost lineage assignments. Used for visualization with matUtils extract -j.
-- floor: set the minimum mean representation gain to this value. Default 0
-- maxpath: set the maximum Rd value, which is currently computed as the distance from the parent to the nearest grandparent lineage or root if no grandparent lineage exists.
 
 ## Current Issues
 

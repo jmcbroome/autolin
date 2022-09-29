@@ -14,7 +14,7 @@ def argparser():
     parser.add_argument('-n', "--number", default=3, type=int, help="Write markdown reports for the top n lineages.")
     parser.add_argument("-s", "--sort", default='proposed_sublineage_score', help="Choose a column to sort by.")
     parser.add_argument('-p', "--prefix", default='proposal_', help="String to use as prefixes for output files.")
-    parser.add_argument("-j", "--jsonsize", default=4000, type=int, help="Maximum size of the json output for each sublineage.")
+    parser.add_argument("-j", "--jsonsize", default=500, type=int, help="Maximum size of the json output for each sublineage.")
     parser.add_argument("-l", "--local", action='store_true', help="Set to write issues to local files only. Default posts issues to https://github.com/jmcbroome/auto-pango-designation/issues")
     parser.add_argument("-c", "--samplecount", default=15, type=int, help="Include up to this many sample names in the text of the report proposing the lineage.")
     parser.add_argument("-k", "--skip", action='store_true', help="Use to skip reporting any lineages that overlap with sample sets enumerated in *_samples.txt files in this directory.")
@@ -44,7 +44,10 @@ def write_report(row, prefix, samplenames, samplecount):
             fstr.append("It is found in {} countries, most commonly {} where {} of its samples were sequenced.".format(ccount, common, commonprop))
     else:
         fstr.append("Countries could not be identified for these samples.")
-    fstr.append("{} has a Bloom Lab escape score of {}, -{} over the parent lineage.".format(row.proposed_sublineage, row.sublineage_escape, row.net_escape_gain))
+    if row.net_escape_gain > 0:
+        fstr.append("{} has a Bloom Lab escape score of {}, -{} over the parent lineage.".format(row.proposed_sublineage, row.sublineage_escape, row.net_escape_gain))
+    else:
+        fstr.append("{} has a Bloom Lab escape score of {}, unchanged from the parent lineage.".format(row.proposed_sublineage, row.sublineage_escape))
     spikes = []
     total = 0
     for n in row.aa_changes.split(">"):
@@ -72,11 +75,15 @@ def write_sample_list(t, mdf, nid, name, prefix, count, skipset, use_skip):
     with open(prefix + name + "_samples.txt","w+") as outf:
         samples = t.get_leaves_ids(nid)
         if use_skip:
-            if any([s for s in samples in samset]):
+            if any([s for s in samples if s in skipset]):
                 print("Proposal {} overlaps with existing proposals; skipping")
                 return [], len(samples)
         metadata = mdf[mdf.strain.isin(samples)]
-        metadata.apply(lambda row: print("\t".join([str(v) for v in row.strain, row.country, row.date]),file=outf))
+        if metadata.shape[0] == 0:
+            print("None of the samples of lineage {} have accompanying metadata; skipping".format(name))
+            return [], len(samples)
+        # print(metadata.columns)
+        metadata.apply(lambda row: print("\t".join([str(v) for v in [row.strain, row.country, row.date]],),file=outf),axis=1)
         selection.append(metadata.iloc[0].strain)
         selection.append(metadata.iloc[-1].strain)
         target = min(count, mdf.shape[0]-2)
@@ -100,13 +107,14 @@ def write_json(t, nid, parent_nid, name, prefix, size, metafile = None):
     parent_samples = t.get_leaves_ids(parent_nid)
     if len(samples_to_use) + len(parent_samples) > size:
         target = size - len(samples_to_use)
-        parents_to_use = np.random.choice(parent_samples, size = target, replace = False)
+        parents_to_use = list(np.random.choice(parent_samples, size = target, replace = False))
     else:
         parents_to_use = parent_samples
+    total = samples_to_use + parents_to_use
     if metafile != None:
-        t.write_json(outn, samples = samples_to_use + parents_to_use, title = name, metafiles = [metafile])
+        t.write_json(outn, samples = total, title = name, metafiles = [metafile])
     else:
-        t.write_json(outn, samples = samples_to_use + parents_to_use, title = name, metafiles = [])
+        t.write_json(outn, samples = total, title = name, metafiles = [])
 
 def main():
     args = argparser()
@@ -134,22 +142,15 @@ def main():
         print("Writing report...")
         report = write_report(d, args.prefix, selected_samples, scount)
         if args.local:
-            with open(prefix + d.proposed_sublineage + ".md","w+") as outf:
+            with open(args.prefix + d.proposed_sublineage + ".md","w+") as outf:
                 print("\n".join(report),file=outf)
         else:
-            g = github(os.getenv("API_KEY"))
+            g = Github(os.getenv("API_KEY"))
             r = g.get_user().get_repo("auto-pango-designation")
-            titlestring = "Sublineage {} of {}".format(row.proposed_sublineage, row.parent)
-            r.create_issue(title=titlestring,body=report)
-        # submeta_name = d.proposed_sublineage + "_metadata.tsv"
+            titlestring = "Sublineage {} of {}".format(d.proposed_sublineage, d.parent)
+            r.create_issue(title=titlestring,body="\n".join(report))
         # print("Writing json...")
-        # sdf = mdf.loc[t.get_leaves_ids(d.proposed_sublineage_nid)]
-        # print("Submeta extracted; proceeding to write.")
-        # if sdf.shape[0] > 0:
-            # sdf.reset_index().to_csv(submeta_name,sep='\t',index=False)
         # write_json(t, d.proposed_sublineage_nid, d.parent_nid, d.proposed_sublineage, args.prefix, args.jsonsize, args.metadata)
-        # else:
-            # write_json(t, d.proposed_sublineage_nid, d.parent_nid, d.proposed_sublineage, args.prefix, args.jsonsize)
         i += 1
     with open(tn+".issues.log","w+") as outf:
         print("Produced files for {} lineage proposals.".format(args.number),file=outf)

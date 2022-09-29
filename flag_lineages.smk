@@ -30,7 +30,7 @@ rule write_issues:
     output:
         "{tree}.issues.log"
     shell:
-        "python3 write_issues.py -i {input[0]} -t {input[1]} -m {input[2]} -n {config[reporting_params][number]} -s {config[reporting_params][sort_by]} -p {config[reporting_params][prefix]} -j {config[reporting_params][json_size]} -k -c {config[reporting_params][samples_named]}"
+        "python3 write_issues.py --local -i {input[0]} -t {input[1]} -m {input[2]} -n {config[reporting_params][number]} -s {config[reporting_params][sort_by]} -p {config[reporting_params][prefix]} -j {config[reporting_params][json_size]} -k -c {config[reporting_params][samples_named]}"
 
 rule add_metadata:
     input:

@@ -113,11 +113,11 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
         return ">".join(hapstring[::-1])
     pdf['mutations'] = pdf.apply(get_separating_mutations,axis=1)
     def get_growth_score(row):
-        # try:
-        time = (row.latest_child - row.earliest_child).week + 1
-        return np.sqrt(row.proposed_sublineage_size) / time
-        # except:
-            # return np.nan
+        try:
+            time = (row.latest_child - row.earliest_child).weeks + 1
+            return np.sqrt(row.proposed_sublineage_size) / time
+        except AttributeError:
+            return np.nan
     pdf['growth_score'] = pdf.apply(get_growth_score,axis=1)
     if gtf_file != None and fa_file != None:
         print("Performing translation and computing antibody binding scores.")
