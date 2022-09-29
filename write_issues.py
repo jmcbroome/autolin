@@ -30,24 +30,24 @@ def get_date(d):
 def write_report(row, prefix, samplenames, samplecount):
     fstr = []
     fstr.append("{} is a proposed child lineage of {} including {} samples.".format(row.proposed_sublineage, row.parent, row.proposed_sublineage_size))
-    if row.earliest_child != np.nan and row.latest_child != np.nan:
+    if type(row.earliest_child) != float and type(row.latest_child) != float:
         fstr.append("The earliest sample is {} and was found on {}, and the latest is {} and was found on {}.".format(samplenames[0], row.earliest_child, samplenames[1], row.latest_child))
     else:
-        fstr.append("Dates could not be identified for these samples.")
-    if row.child_regions != np.nan:
+        fstr.append("Dates could not be identified from the metadata for these samples.")
+    if type(row.child_regions) != float and row.child_regions != np.nan: 
         ccount = row.child_regions.count(",") + 1
         common = row.child_regions.split(",")[0]
         commonprop = round(float(row.child_region_percents.split(",")[0])*100,2)
         if ccount == 1:
             fstr.append("It is found in {} only.".format(row.child_regions))
         else:
-            fstr.append("It is found in {} countries, most commonly {} where {} of its samples were sequenced.".format(ccount, common, commonprop))
+            fstr.append("It is found in {} countries, most commonly {} where {:.2f}% of its samples were sequenced.".format(ccount, common, commonprop))
     else:
         fstr.append("Countries could not be identified for these samples.")
     if row.net_escape_gain > 0:
-        fstr.append("{} has a Bloom Lab escape score of {}, -{} over the parent lineage.".format(row.proposed_sublineage, row.sublineage_escape, row.net_escape_gain))
+        fstr.append("{} has a Bloom Lab escape score of {:.2f}, -{:.2f} over the parent lineage.".format(row.proposed_sublineage, row.sublineage_escape, row.net_escape_gain))
     else:
-        fstr.append("{} has a Bloom Lab escape score of {}, unchanged from the parent lineage.".format(row.proposed_sublineage, row.sublineage_escape))
+        fstr.append("{} has a Bloom Lab escape score of {:.2f}, unchanged from the parent lineage.".format(row.proposed_sublineage, row.sublineage_escape))
     spikes = []
     total = 0
     for n in row.aa_changes.split(">"):
@@ -86,9 +86,9 @@ def write_sample_list(t, mdf, nid, name, prefix, count, skipset, use_skip):
         metadata.apply(lambda row: print("\t".join([str(v) for v in [row.strain, row.country, row.date]],),file=outf),axis=1)
         selection.append(metadata.iloc[0].strain)
         selection.append(metadata.iloc[-1].strain)
-        target = min(count, mdf.shape[0]-2)
+        target = min(count, metadata.shape[0]-2)
         if target > 0:
-            selection.extend(mdf.iloc[1:-1,:].strain.sample(target,replace=False))
+            selection.extend(metadata.iloc[1:-1,:].strain.sample(target,replace=False))
     return selection, len(samples)
 
 def get_current_proposed_covered():
