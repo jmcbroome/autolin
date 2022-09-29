@@ -107,7 +107,7 @@ rule compute_region_weights_and_dates:
         to_use = (invweights-invweights.min())/(invweights.max()-invweights.min()) * scale + 1
         with open(output[0],"w+") as outf:
             for i,d in target.iterrows():
-                print(d.strain + "\t" + str(invweights[d.country]),file=outf)        
+                print(d.strain + "\t" + str(to_use[d.country]),file=outf)        
 
 rule compute_escape_weights:
     output:
