@@ -6,17 +6,17 @@ lineage_params:
   floor: 10 #minimum score value. Set higher to filter smaller and less valuable proposals. Set to 0 to report any and all sublineage proposals that pass other filters.
   annotation: B.1.1.529 #consider only this lineage and its descendents for sublineage proposal. Set to None to consider all lineages. 
   missense: True #consider only mutations that lead to amino acid changes as part of the haplotype. 
-  gene: S #consider only mutations within the indicated gene as part of the haplotype. Set to None to use the whole genome.
+  gene: None #consider only mutations within the indicated gene as part of the haplotype. Set to None to use the whole genome.
   minsamples: 15 #minimum sample weight. Default weighting scheme is 1 per sample (more for underrepresented countries when country_weighting is used).
   distinction: 1 #minimum mutation weight. Default weighting scheme is 1 per mutation (more for mutations associated with immune escape if escape_weighting is used).
   recursive: False #allow proposal of additional sublineages from newly proposed lineages. 
   cutoff: 0.99 #stop adding new serial (exclusive) lineage annotations when this percentage of samples is labeled.
-  earliest_date: '2022-08-30' #ignore all samples before this date. Set to 2019-12-01 to examine the entire pandemic.
+  earliest_date: '2022-07-30' #ignore all samples before this date. Set to 2019-12-01 to examine the entire pandemic.
   weight_params:
-    escape_weighting: 25 #Higher values means mutations associated with immune escape by the Bloom lab DMS are given higher weight. Set to 0 to disable escape weighting. 
+    escape_weighting: 500 #Higher values means mutations associated with immune escape by the Bloom lab DMS are given higher weight. Set to 0 to disable escape weighting. 
     country_weighting: 5 #Higher values means samples from underrepresented countries count more. Set to 0 to disable country weighting. 
 reporting_params:
   sort_by: "proposed_sublineage_score" #sort the results by this column.
-  number: 3 #report the top X lineages.
+  number: 20 #report the top X lineages.
   prefix: "proposed_" #set a prefix for markdown and associated file output.
   samples_named: 15 #name up to this many samples within the text of the report, including the oldest and youngest samples. 

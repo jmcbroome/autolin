@@ -66,11 +66,11 @@ def write_report(row, prefix, samplenames, samplecount, treename = None, treenod
         fstr.append("It is defined by the following spike protein changes: {}. There are {} defining protein changes overall.".format(",".join(spikes), total))
     if row.host_jump:
         fstr.append("It represents a zoonotic event!")
-    fstr.append("\nNOTE: The following links search by genotype and parent lineage; they may additionally highlight samples outside of the proposed clade that convergently evolved the same mutations or that were added after this lineage was inferred, "
+    fstr.append("\nNOTE: The following links search by genotype and parent lineage; they may additionally highlight samples outside of the proposed clade that convergently evolved the same mutations or that were added after this lineage was inferred, ")
     fstr.append("or not display or highlight samples which reverted some of the key changes or were removed after this lineage was inferred. They may also take a moment to complete the search on loading.")
     fstr.append("\nView it on [cov-spectrum]({})".format(row.link))
-    fstr.append("\nView the publicly available samples on [taxonium]({})".format(row.taxlink))
-    fstr.append("\nThe following samples are included: ")
+    fstr.append("\nView it on [taxonium]({})".format(row.taxlink))
+    fstr.append("\nThe following samples are included in this proposal: ")
     for s in samplenames:
         fstr.append(s)
     remainder = samplecount - len(samplenames)
