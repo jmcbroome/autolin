@@ -89,12 +89,12 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
     print("Tracking country composition.")
     def get_regions(nid):
         try:
-            return ",".join(list(mdf.loc[t.get_leaves_ids(nid)].country.value_counts().index))
+            return ",".join(list(mdf.loc[[l for l in t.get_leaves_ids(nid) if l in mdf.index]].country.value_counts().index))
         except:
             return np.nan
     def get_regions_percents(nid):        
         try:
-            return ",".join([str(round(p,2)) for p in mdf.loc[t.get_leaves_ids(nid)].country.value_counts(normalize=True)])
+            return ",".join([str(round(p,2)) for p in mdf.loc[[l for l in t.get_leaves_ids(nid) if l in mdf.index]].country.value_counts(normalize=True)])
         except:
             return np.nan
     pdf['child_regions'] = pdf.proposed_sublineage_nid.apply(get_regions)
@@ -103,7 +103,7 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
     # pdf['ParentRegionPercents'] = pdf.parent_nid.apply(get_regions_percents)
     def host_jump(row):
         try:
-            return mdf.loc[t.get_leaves_ids(row.proposed_sublineage_nid)].host.nunique() > 1
+            return mdf.loc[[l for l in t.get_leaves_ids(proposed_sublineage_nid) if l in mdf.index]].host.nunique() > 1
         except:
             return False
     print("Identifying host jumps.")

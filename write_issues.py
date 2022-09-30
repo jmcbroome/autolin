@@ -5,6 +5,7 @@ import numpy as np
 import os
 from github import Github
 import glob
+import datetime as dt
 
 def argparser():
     parser = argparse.ArgumentParser(description="Write markdown issues representing the top N proposed sublineages of a report.")
@@ -31,27 +32,27 @@ def write_report(row, prefix, samplenames, samplecount, treename = None, treenod
     fstr = []
     fstr.append("{} is a proposed sublineage of {} that includes {} samples.".format(row.proposed_sublineage, row.parent, row.proposed_sublineage_size))
     if treename != None and treenode != None:
-        fstr.append("It was identified from the tree file {} as the descendents of {}.".format(treename, treenode))
+        fstr.append("\nIt was identified from the tree file {} as the descendents of {}.".format(treename, treenode))
     if type(row.earliest_child) != float and type(row.latest_child) != float:
-        fstr.append("The earliest dated sample was found on {}.".format(row.earliest_child))
-        fstr.append("The latest dated sample was found on {}.".format(row.latest_child))
+        fstr.append("\nThe earliest dated sample was found on {}.".format(row.earliest_child))
+        fstr.append("\nThe latest dated sample was found on {}.".format(row.latest_child))
     else:
-        fstr.append("Dates could not be identified from the metadata for these samples.")
+        fstr.append("\nDates could not be identified from the metadata for these samples.")
     common = None
     if type(row.child_regions) != float and row.child_regions != np.nan: 
         ccount = row.child_regions.count(",") + 1
         common = row.child_regions.split(",")[0]
         commonprop = round(float(row.child_region_percents.split(",")[0])*100,2)
         if ccount == 1:
-            fstr.append("It is found in {} only.".format(row.child_regions))
+            fstr.append("\nIt is found in {} only.".format(row.child_regions))
         else:
-            fstr.append("It is found in {} countries, most commonly {} where {:.2f}% of its samples were sequenced.".format(ccount, common, commonprop))
+            fstr.append("\nIt is found in {} countries, most commonly {} where {:.2f}% of its samples were sequenced.".format(ccount, common, commonprop))
     else:
-        fstr.append("Countries could not be identified for these samples.")
+        fstr.append("\nCountries could not be identified for these samples.")
     if row.net_escape_gain > 0:
-        fstr.append("{} has a Bloom Lab escape score of {:.2f}, -{:.2f} over the parent lineage.".format(row.proposed_sublineage, row.sublineage_escape, row.net_escape_gain))
+        fstr.append("\n{} has a Bloom Lab escape score of {:.2f}, -{:.2f} over the parent lineage.".format(row.proposed_sublineage, row.sublineage_escape, row.net_escape_gain))
     else:
-        fstr.append("{} has a Bloom Lab escape score of {:.2f}, unchanged from the parent lineage.".format(row.proposed_sublineage, row.sublineage_escape))
+        fstr.append("\n{} has a Bloom Lab escape score of {:.2f}, unchanged from the parent lineage.".format(row.proposed_sublineage, row.sublineage_escape))
     spikes = []
     total = 0
     for n in row.aa_changes.split(">"):
@@ -61,11 +62,11 @@ def write_report(row, prefix, samplenames, samplecount, treename = None, treenod
                     spikes.append(m)
             total += 1
     if len(spikes) == 0:
-        fstr.append("It is not defined by any spike protein changes. It has {} defining protein changes overall.".format(total))
+        fstr.append("\nIt is not defined by any spike protein changes. It has {} defining protein changes overall.".format(total))
     else:
-        fstr.append("It is defined by the following spike protein changes: {}. There are {} defining protein changes overall.".format(",".join(spikes), total))
+        fstr.append("\nIt is defined by the following spike protein changes: {}. There are {} defining protein changes overall.".format(",".join(spikes), total))
     if row.host_jump:
-        fstr.append("It represents a zoonotic event!")
+        fstr.append("\nIt represents a zoonotic event!")
     fstr.append("\nNOTE: The following links search by genotype and parent lineage; they may additionally highlight samples outside of the proposed clade that convergently evolved the same mutations or that were added after this lineage was inferred, ")
     fstr.append("or not display or highlight samples which reverted some of the key changes or were removed after this lineage was inferred. They may also take a moment to complete the search on loading.")
     fstr.append("\nView it on [cov-spectrum]({})".format(row.link))
@@ -141,13 +142,13 @@ def main():
     mdf = pd.read_csv(args.metadata,sep='\t')
     mdf['date'] = mdf.date.apply(get_date)
     mdf.sort_values('date',inplace=True)
-    if not args.skip:
+    if args.skip:
         samset = get_current_proposed_covered()
     else:
         samset = set()
     if len(samset) == 0 and args.skip:
         print("Found no current samples in *_samples.txt files.")
-    else:
+    elif args.skip:
         print("Found {} samples in *_samples.txt files; fresh proposals containing any of these samples will not be reported as new lineages.".format(len(samset)))
     i = 0
     for ind,d in df.sort_values(args.sort).iterrows():
