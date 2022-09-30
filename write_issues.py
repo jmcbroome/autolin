@@ -27,14 +27,17 @@ def get_date(d):
     except:
         return np.nan
 
-def write_report(row, prefix, samplenames, samplecount):
+def write_report(row, prefix, samplenames, samplecount, treename = None, treenode = None):
     fstr = []
     fstr.append("{} is a proposed sublineage of {} that includes {} samples.".format(row.proposed_sublineage, row.parent, row.proposed_sublineage_size))
+    if treename != None and treenode != None:
+        fstr.append("It was identified from the tree file {} as the descendents of {}.".format(treename, treenode))
     if type(row.earliest_child) != float and type(row.latest_child) != float:
         fstr.append("The earliest dated sample was found on {}.".format(row.earliest_child))
         fstr.append("The latest dated sample was found on {}.".format(row.latest_child))
     else:
         fstr.append("Dates could not be identified from the metadata for these samples.")
+    common = None
     if type(row.child_regions) != float and row.child_regions != np.nan: 
         ccount = row.child_regions.count(",") + 1
         common = row.child_regions.split(",")[0]
@@ -63,6 +66,8 @@ def write_report(row, prefix, samplenames, samplecount):
         fstr.append("It is defined by the following spike protein changes: {}. There are {} defining protein changes overall.".format(",".join(spikes), total))
     if row.host_jump:
         fstr.append("It represents a zoonotic event!")
+    fstr.append("\nNOTE: The following links search by genotype and parent lineage; they may additionally highlight samples outside of the proposed clade that convergently evolved the same mutations or that were added after this lineage was inferred, "
+    fstr.append("or not display or highlight samples which reverted some of the key changes or were removed after this lineage was inferred. They may also take a moment to complete the search on loading.")
     fstr.append("\nView it on [cov-spectrum]({})".format(row.link))
     fstr.append("\nView the publicly available samples on [taxonium]({})".format(row.taxlink))
     fstr.append("\nThe following samples are included: ")
@@ -71,7 +76,7 @@ def write_report(row, prefix, samplenames, samplecount):
     remainder = samplecount - len(samplenames)
     if remainder > 0:
         fstr.append("As well as {} additional samples.".format(remainder))
-    return fstr
+    return fstr, ','.join(spikes), common
 
 def write_sample_list(t, mdf, nid, name, prefix, count, skipset):
     selection = []
@@ -155,14 +160,19 @@ def main():
             print("{} has no metadata or includes samples already covered by open proposals; skipping.".format(d.proposed_sublineage))
             continue
         print("Writing report...")
-        report = write_report(d, args.prefix, selected_samples, scount)
+        report, spikechanges, common_country = write_report(d, args.prefix, selected_samples, scount, args.tree, d.proposed_sublineage_nid)
+        titlestring = "{} {} samples".format(d.proposed_sublineage_size, d.parent)
+        if common_country != None:
+            titlestring += " in {}".format(common_country)
+        if len(spikechanges) > 0:
+            titlestring += " with {}".format(spikechanges)
         if args.local:
             with open(args.prefix + d.proposed_sublineage + ".md","w+") as outf:
-                print("\n".join(report),file=outf)
+                print("Title: " + titlestring, file=outf)
+                print("\n".join(report), file=outf)
         else:
             g = Github(os.getenv("API_KEY"))
             r = g.get_user().get_repo("auto-pango-designation")
-            titlestring = "Sublineage {} of {}".format(d.proposed_sublineage, d.parent)
             r.create_issue(title=titlestring,body="\n".join(report))
         # print("Writing json...")
         # write_json(t, d.proposed_sublineage_nid, d.parent_nid, d.proposed_sublineage, args.prefix, args.jsonsize, args.metadata)
