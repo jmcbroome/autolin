@@ -31,7 +31,7 @@ def write_report(row, prefix, samplenames, samplecount):
     fstr = []
     fstr.append("{} is a proposed sublineage of {} that includes {} samples.".format(row.proposed_sublineage, row.parent, row.proposed_sublineage_size))
     if type(row.earliest_child) != float and type(row.latest_child) != float:
-        fstr.append("The earliest dated sample was found on {}".format(row.earliest_child))
+        fstr.append("The earliest dated sample was found on {}.".format(row.earliest_child))
         fstr.append("The latest dated sample was found on {}.".format(row.latest_child))
     else:
         fstr.append("Dates could not be identified from the metadata for these samples.")
@@ -63,9 +63,9 @@ def write_report(row, prefix, samplenames, samplecount):
         fstr.append("It is defined by the following spike protein changes: {}. There are {} defining protein changes overall.".format(",".join(spikes), total))
     if row.host_jump:
         fstr.append("It represents a zoonotic event!")
-    fstr.append("View it on [cov-spectrum]({})".format(row.link))
-    fstr.append("View the publicly available samples on [taxonium]({})".format(row.taxlink))
-    fstr.append("The following samples are included: ")
+    fstr.append("\nView it on [cov-spectrum]({})".format(row.link))
+    fstr.append("\nView the publicly available samples on [taxonium]({})".format(row.taxlink))
+    fstr.append("\nThe following samples are included: ")
     for s in samplenames:
         fstr.append(s)
     remainder = samplecount - len(samplenames)
