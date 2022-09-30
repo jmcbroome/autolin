@@ -44,7 +44,6 @@ def write_taxonium_url(parentlin, mutations):
         keyi += 1
         searchbase['subspecs'].append({"key":key,"type":"genotype","method":"genotype","text":"","gene":gene,"position":loc,"new_residue":state,"min_tips":0})
     searchbase['boolean_method'] = 'and'
-    print("".join(str(searchbase).split()))
     queries = parse.urlencode([("srch",'[' + "".join(str(searchbase).split()).replace("'",'"') + ']'),("enabled",'{"aa1":"true"}'),("zoomToSearch",0)])
     return urlbase + queries
 
@@ -175,7 +174,6 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
                 if len(n) > 0:
                     changes.extend(n.split(","))
             return changes
-        print(pdf)
         pdf['taxlink'] = pdf.apply(lambda row:write_taxonium_url(row.parent, changes_to_list(row.aa_changes)),axis=1)
     return pdf
 

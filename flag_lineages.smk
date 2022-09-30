@@ -118,3 +118,15 @@ rule compute_escape_weights:
             wvc = edf.groupby("label_site").site_total_escape.mean()
             for ls in wvc.index:
                 print("\t".join([str(v) for v in ['S', ls[1:]+ls[0], 1 + wvc[ls] * config['lineage_params']['weight_params']['escape_weighting']]]), file=wout)
+
+rule download_tree:
+    #many public trees can be obtained online, from http://hgdownload.soe.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/2022/09/28/
+    #if the indicated tree file is not found locally, it will attempt to download it from this source.
+    output:
+        "{tree}.pb.gz"
+        "{tree}.metadata.tsv.gz"
+    run:
+        date = wildcards.tree.split(".")[0].split("-")[1:]
+        link = "http://hgdownload.soe.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/{}/{}/{}/".format(*date)
+        shell("wget " + link + output[0])
+        shell("wget " + link + output[1])
