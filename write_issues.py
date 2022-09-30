@@ -29,9 +29,10 @@ def get_date(d):
 
 def write_report(row, prefix, samplenames, samplecount):
     fstr = []
-    fstr.append("{} is a proposed child lineage of {} including {} samples.".format(row.proposed_sublineage, row.parent, row.proposed_sublineage_size))
+    fstr.append("{} is a proposed sublineage of {} that includes {} samples.".format(row.proposed_sublineage, row.parent, row.proposed_sublineage_size))
     if type(row.earliest_child) != float and type(row.latest_child) != float:
-        fstr.append("The earliest sample is {} and was found on {}, and the latest is {} and was found on {}.".format(samplenames[0], row.earliest_child, samplenames[1], row.latest_child))
+        fstr.append("The earliest dated sample was found on {}".format(row.earliest_child))
+        fstr.append("The latest dated sample was found on {}.".format(row.latest_child))
     else:
         fstr.append("Dates could not be identified from the metadata for these samples.")
     if type(row.child_regions) != float and row.child_regions != np.nan: 
@@ -52,8 +53,9 @@ def write_report(row, prefix, samplenames, samplecount):
     total = 0
     for n in row.aa_changes.split(">"):
         for m in n.split(","):
-            if m[0] == 'S':
-                spikes.append(m)
+            if len(m) > 0:
+                if m[0] == 'S':
+                    spikes.append(m)
             total += 1
     if len(spikes) == 0:
         fstr.append("It is not defined by any spike protein changes. It has {} defining protein changes overall.".format(total))
@@ -62,6 +64,7 @@ def write_report(row, prefix, samplenames, samplecount):
     if row.host_jump:
         fstr.append("It represents a zoonotic event!")
     fstr.append("View it on [cov-spectrum]({})".format(row.link))
+    fstr.append("View the publicly available samples on [taxonium]({})".format(row.taxlink))
     fstr.append("The following samples are included: ")
     for s in samplenames:
         fstr.append(s)
@@ -70,25 +73,34 @@ def write_report(row, prefix, samplenames, samplecount):
         fstr.append("As well as {} additional samples.".format(remainder))
     return fstr
 
-def write_sample_list(t, mdf, nid, name, prefix, count, skipset, use_skip):
+def write_sample_list(t, mdf, nid, name, prefix, count, skipset):
     selection = []
     with open(prefix + name + "_samples.txt","w+") as outf:
-        samples = t.get_leaves_ids(nid)
-        if use_skip:
-            if any([s for s in samples if s in skipset]):
-                print("Proposal {} overlaps with existing proposals; skipping")
-                return [], len(samples)
+        # samples = t.get_leaves_ids(nid)
+        #ensure that among the sample names printed, at least two have their MRCA at the node root. 
+        samples = []
+        childset = {}
+        for child in t.get_node(nid).children:
+            cs = t.get_leaves_ids(child.id)
+            for s in cs:
+                samples.append(s)
+                childset[s] = child.id
+            # samples.extend(cs)
+            # childset[child.id] = set(cs)
+        if any([s for s in samples if s in skipset]):
+            print("Proposal {} overlaps with existing proposals; skipping")
+            return [], len(samples)
         metadata = mdf[mdf.strain.isin(samples)]
+        metadata['FromChild'] = metadata.strain.apply(lambda x:childset[s])
         if metadata.shape[0] == 0:
             print("None of the samples of lineage {} have accompanying metadata; skipping".format(name))
             return [], len(samples)
-        # print(metadata.columns)
         metadata.apply(lambda row: print("\t".join([str(v) for v in [row.strain, row.country, row.date]],),file=outf),axis=1)
-        selection.append(metadata.iloc[0].strain)
-        selection.append(metadata.iloc[-1].strain)
-        target = min(count, metadata.shape[0]-2)
-        if target > 0:
-            selection.extend(metadata.iloc[1:-1,:].strain.sample(target,replace=False))
+        #pick one from each child group. This ensures that the LCA of the named group is the correct root of the lineage.
+        selection.extend(metadata.groupby("FromChild", group_keys=False).strain.sample(1)) 
+        remaining = metadata[~metadata.strain.isin(selection)]
+        selection.extend(remaining.strain.sample(min([count - len(selection), remaining.shape[0]]), replace=False))
+        assert len(selection) <= count
     return selection, len(samples)
 
 def get_current_proposed_covered():
@@ -124,8 +136,11 @@ def main():
     mdf = pd.read_csv(args.metadata,sep='\t')
     mdf['date'] = mdf.date.apply(get_date)
     mdf.sort_values('date',inplace=True)
-    samset = get_current_proposed_covered()
-    if len(samset) == 0:
+    if not args.skip:
+        samset = get_current_proposed_covered()
+    else:
+        samset = set()
+    if len(samset) == 0 and args.skip:
         print("Found no current samples in *_samples.txt files.")
     else:
         print("Found {} samples in *_samples.txt files; fresh proposals containing any of these samples will not be reported as new lineages.".format(len(samset)))
@@ -135,9 +150,9 @@ def main():
             break
         print("Recording output for {}".format(d.proposed_sublineage))
         print("Writing samples...")
-        selected_samples, scount = write_sample_list(t, mdf, d.proposed_sublineage_nid, d.proposed_sublineage, args.prefix, args.samplecount, samset, args.skip)
+        selected_samples, scount = write_sample_list(t, mdf, d.proposed_sublineage_nid, d.proposed_sublineage, args.prefix, args.samplecount, samset)
         if len(selected_samples) == 0:
-            print("{} has no dates or includes samples already covered by open proposals; skipping.".format(d.proposed_sublineage))
+            print("{} has no metadata or includes samples already covered by open proposals; skipping.".format(d.proposed_sublineage))
             continue
         print("Writing report...")
         report = write_report(d, args.prefix, selected_samples, scount)

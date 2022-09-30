@@ -25,6 +25,29 @@ def get_date(d):
     except:
         return np.nan
 
+def write_taxonium_url(parentlin, mutations):
+    urlbase = 'https://taxonium.org/?backend=https://api.cov2tree.org&'
+    searchbase = {"key":"aa1","type":"boolean","method":"boolean","text":parentlin,"gene":"S","position":484,"new_residue":"any","min_tips":0}
+    searchbase['subspecs'] = [{"key":"ab0","type":"meta_pango_lineage_usher","method":"text_exact","text":parentlin,"gene":"S","position":484,"new_residue":"any","min_tips":0}]
+    #taxonium uses key values that are distinct for every search but seemingly arbitrary.
+    keyi = 1
+    keys_used = []
+    for gm in mutations:
+        if ":" not in gm:
+            print("WARNING: mutation {} failing to parse".format(gm))
+            continue
+        gene, m = gm.split(":")
+        loc = m[1:-1]
+        state = m[-1]
+        key = str(keyi) + 'ab'
+        keys_used.append(key)
+        keyi += 1
+        searchbase['subspecs'].append({"key":key,"type":"genotype","method":"genotype","text":"","gene":gene,"position":loc,"new_residue":state,"min_tips":0})
+    searchbase['boolean_method'] = 'and'
+    print("".join(str(searchbase).split()))
+    queries = parse.urlencode([("srch",'[' + "".join(str(searchbase).split()).replace("'",'"') + ']'),("enabled",'{"aa1":"true"}'),("zoomToSearch",0)])
+    return urlbase + queries
+
 def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
     mdf.set_index('strain',inplace=True)
     def parent_lineage_size(row):
@@ -52,12 +75,12 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
         child_samples = set(t.get_leaves_ids(row.proposed_sublineage_nid))
         parent_only = parent_samples - child_samples
         try:
-            parent_dates = mdf.loc[list(parent_only)].date
-            child_dates = mdf.loc[list(child_samples)].date
+            parent_dates = mdf.loc[[p for p in parent_only if p in mdf.index]].date
+            child_dates = mdf.loc[[c for c in child_samples if c in mdf.index]].date
             return min(parent_dates),max(parent_dates),min(child_dates),max(child_dates)
         except KeyboardInterrupt:
             raise KeyboardInterrupt
-        except:
+        except IndexError:
             return np.nan,np.nan,np.nan,np.nan
     print("Computing start and end dates.")
     applied_pdf = pdf.apply(lambda row: get_start_ends(row), axis='columns', result_type='expand')
@@ -126,7 +149,7 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
             parent_changes = []
             past_parent = False
             for n in t.rsearch(row.proposed_sublineage_nid,True):
-                aas = translation.get(n.id,[])
+                aas = [a for a in translation.get(n.id,[]) if a.original_aa != a.alternative_aa] #ignore synonymous changes.
                 if n.id == row.parent_nid:
                     past_parent = True
                 if past_parent:
@@ -146,6 +169,14 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
         pdf['sublineage_escape'] = cev
         pdf['parent_escape'] = pev
         pdf['net_escape_gain'] = nev   
+        def changes_to_list(aacstr):
+            changes = []
+            for n in aacstr.split(">"):
+                if len(n) > 0:
+                    changes.extend(n.split(","))
+            return changes
+        print(pdf)
+        pdf['taxlink'] = pdf.apply(lambda row:write_taxonium_url(row.parent, changes_to_list(row.aa_changes)),axis=1)
     return pdf
 
 def main():
