@@ -148,7 +148,20 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
             parent_changes = []
             past_parent = False
             for n in t.rsearch(row.proposed_sublineage_nid,True):
-                aas = [a for a in translation.get(n.id,[]) if a.original_aa != a.alternative_aa] #ignore synonymous changes.
+                #further filter aa changes in orf1a/b so that they're properly processed for taxonium viewing and not counted redundantly
+                #in our code, ORF1a changes are annotated as both ORF1a and ORF1ab, ORF1b are annotated as ORF1ab only.
+                aas = []
+                for a in translation.get(n.id,[]):
+                    if a.original_aa == a.alternative_aa:
+                        continue #ignore synonymous mutations
+                    if a.gene == "ORF1ab":
+                        #if there's an accompanying orf1a mutation, ignore this
+                        if any([(sa.gene == 'ORF1a' and sa.nuc == a.nuc) for sa in aas]):
+                            continue
+                        else:
+                            #else, set its gene to ORF1b so that taxonium search links are generated correctly.
+                            a.gene = "ORF1b"
+                    aas.append(a)
                 if n.id == row.parent_nid:
                     past_parent = True
                 if past_parent:

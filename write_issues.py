@@ -58,6 +58,9 @@ def write_report(row, prefix, samplenames, samplecount, treename = None, treenod
     for n in row.aa_changes.split(">"):
         for m in n.split(","):
             if len(m) > 0:
+                #ignore ORF1a, its redundant with the ORF1ab translation for counts
+                if m.split(":") == "ORF1a":
+                    continue
                 if m[0] == 'S':
                     spikes.append(m)
             total += 1

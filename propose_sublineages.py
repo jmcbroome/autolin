@@ -244,6 +244,9 @@ def argparser():
 def propose(args):
     t = bte.MATree(args.input)
     mutweights = {}
+    if args.gene == 'ORF1a' or args.gene == 'ORF1b':
+        print("WARNING: ORF1a and ORF1b are treated as a unified ORF1ab for purposes of haplotype identification due to complexities with redundant counting and translation implementation.")
+        args.gene = "ORF1ab"
     if args.gtf != None and args.reference != None:
         if args.verbose:
             print("Performing tree translation and setting weights for mutations based on amino acid changes.")
@@ -254,6 +257,9 @@ def propose(args):
         translation = t.translate(fasta_file=args.reference,gtf_file=args.gtf)
         for nid, aav in translation.items():
             for aa in aav:
+                if aa.gene == "ORF1a":
+                    #ignore ORF1a in our translation; its redundant with ORF1ab and leads to multicounting.
+                    continue
                 if args.missense and aa.is_synonymous():
                     continue
                 if args.gene != None:
