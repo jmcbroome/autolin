@@ -20,4 +20,4 @@ reporting_params:
   number: 20 #report the top X lineages.
   prefix: "proposed_" #set a prefix for markdown and associated file output.
   samples_named: 15 #name up to this many samples within the text of the report, including the oldest and youngest samples. 
-  local_only: False #set to True to print markdown issues to local files instead of attempting to post them to the repository issues board.
+  local_only: True #set to True to print markdown issues to local files instead of attempting to post them to the repository issues board.

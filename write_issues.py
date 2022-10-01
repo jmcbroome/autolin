@@ -104,7 +104,13 @@ def write_sample_list(t, mdf, nid, name, prefix, count, skipset):
         if metadata.shape[0] == 0:
             print("None of the samples of lineage {} have accompanying metadata; skipping".format(name))
             return [], len(samples)
-        metadata.apply(lambda row: print("\t".join([str(v) for v in [row.strain, row.country, row.date]],),file=outf),axis=1)
+        def print_sample_info(row):
+            try:
+                datestr = row.date.strftime("%Y-%m-%d")
+            except ValueError:
+                datestr = "NaN"
+            print("\t".join([str(v) for v in [row.strain, row.country, datestr]],),file=outf)
+        metadata.apply(print_sample_info,axis=1)
         #pick one from each child group. This ensures that the LCA of the named group is the correct root of the lineage.
         selection.extend(metadata.groupby("FromChild", group_keys=False).strain.sample(1)) 
         remaining = metadata[~metadata.strain.isin(selection)]
@@ -118,8 +124,13 @@ def get_current_proposed_covered():
     for f in sfiles:
         with open(f) as inf:
             for entry in inf:
-                sample, country, date = entry.strip().split()
-                samset.add(sample)
+                try:
+                    sample, country, date = entry.strip().split()
+                    samset.add(sample)
+                except:
+                    print("WARNING: following did not parse correctly")
+                    print(entry)
+                    continue
     return samset
 
 def write_json(t, nid, parent_nid, name, prefix, size, metafile = None):
