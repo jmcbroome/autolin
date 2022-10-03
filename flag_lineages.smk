@@ -76,7 +76,13 @@ rule propose:
         d['gtf'] = config['reference_gtf']
         d['dump'] = output[0]
         d['output'] = output[1]
-        command_args = ["--" + k + " " + v for k,v in d.items()]
+        command_args = []
+        for k,v in d.items():
+            if type(v) == bool:
+                if v:
+                    command_args.append("--" + str(k))
+            else:
+                command_args.append("--" + str(k) + " " + str(v))
         shell("python3 propose_sublineages.py " + " ".join(command_args))
 
 rule unzip_metadata:
