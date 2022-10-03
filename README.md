@@ -14,11 +14,11 @@ We rely on conda for managing environmental dependencies.
 
 ```
 git clone --recurse-submodules https://github.com/jmcbroome/automate-lineages-prototype
+conda create -f env.yml
+conda activate autolin
 cd SARS2_RBD_Ab_escape_maps
 git lfs pull
 cd ..
-conda create -f env.yml
-conda activate autolin
 ```
 
 ## Pipeline
