@@ -55,15 +55,16 @@ def write_report(row, prefix, samplenames, samplecount, treename = None, treenod
         fstr.append("\n{} has a Bloom Lab escape score of {:.2f}, unchanged from the parent lineage.".format(row.proposed_sublineage, row.sublineage_escape))
     spikes = []
     total = 0
-    for n in row.aa_changes.split(">"):
-        for m in n.split(","):
-            if len(m) > 0:
-                #ignore ORF1a, its redundant with the ORF1ab translation for counts
-                if m.split(":") == "ORF1a":
-                    continue
-                if m[0] == 'S':
-                    spikes.append(m)
-            total += 1
+    if type(row.aa_changes) != float:
+        for n in row.aa_changes.split(">"):
+            for m in n.split(","):
+                if len(m) > 0:
+                    #ignore ORF1a, its redundant with the ORF1ab translation for counts
+                    if m.split(":") == "ORF1a":
+                        continue
+                    if m[0] == 'S':
+                        spikes.append(m)
+                total += 1
     if len(spikes) == 0:
         fstr.append("\nIt is not defined by any spike protein changes. It has {} defining protein changes overall.".format(total))
     else:
@@ -168,6 +169,9 @@ def main():
     for ind,d in df.sort_values(args.sort).iterrows():
         if i >= args.number:
             break
+        if "(" in d.proposed_sublineage:
+            print("Skipping {} for appearing not to be from a pangolin lineage...".format(d.proposed_sublineage))
+            continue
         print("Recording output for {}".format(d.proposed_sublineage))
         print("Writing samples...")
         selected_samples, scount = write_sample_list(t, mdf, d.proposed_sublineage_nid, d.proposed_sublineage, args.prefix, args.samplecount, samset)
