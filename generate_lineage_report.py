@@ -32,11 +32,12 @@ def write_taxonium_url(parentlin, mutations):
     #taxonium uses key values that are distinct for every search but seemingly arbitrary.
     keyi = 1
     keys_used = []
-    for gm in mutations:
-        if ":" not in gm:
-            print("WARNING: mutation {} failing to parse".format(gm))
-            continue
-        gene, m = gm.split(":")
+    for m in mutations:
+        # if ":" not in gm:
+            # print("WARNING: mutation {} failing to parse".format(gm))
+            # continue
+        # gene, m = gm.split(":")
+        gene = 'nt' #use the nucleotide search to generate links, avoid inconsistency with different GTFs.
         loc = m[1:-1]
         state = m[-1]
         key = str(keyi) + 'ab'
@@ -187,7 +188,7 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
                 if len(n) > 0:
                     changes.extend(n.split(","))
             return changes
-        pdf['taxlink'] = pdf.apply(lambda row:write_taxonium_url(row.parent, changes_to_list(row.aa_changes)),axis=1)
+        pdf['taxlink'] = pdf.apply(lambda row:write_taxonium_url(row.parent, changes_to_list(row.mutations)),axis=1)
     return pdf
 
 def main():
