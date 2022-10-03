@@ -1,8 +1,6 @@
 import sys
 from pathlib import Path
 sys.path.insert(0, Path(workflow.basedir).parent.as_posix())
-import bte
-from propose_sublineages import propose, argparser
 import pandas as pd
 import datetime as dt
 import numpy as np
@@ -63,10 +61,7 @@ rule propose:
         "{tree}.proposed.tsv",
         "{tree}.proposed.pb"
     run:
-        #due to the complexity of the number of arguments that may or may not be defaults to the proposal code, 
-        #instead of writing a shell command with a formatted string, we create the arguments Namespace programmatically and pass that to the proposal code
-        args = argparser().parse_args(['--input',input[0]])
-        d = vars(args)
+        d = {"input":input[0]}
         for k,v in config['lineage_params'].items():
             if k not in d.keys():
                 continue
@@ -81,7 +76,8 @@ rule propose:
         d['gtf'] = config['reference_gtf']
         d['dump'] = output[0]
         d['output'] = output[1]
-        propose(args)
+        command_args = ["--" + k + " " + v for k,v in d.items()]
+        shell("python3 propose_sublineages.py " + " ".join(command_args))
 
 rule unzip_metadata:
     input:
