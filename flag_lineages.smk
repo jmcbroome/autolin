@@ -126,10 +126,12 @@ rule download_tree:
     #many public trees can be obtained online, from http://hgdownload.soe.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/2022/09/28/
     #if the indicated tree file is not found locally, it will attempt to download it from this source.
     output:
-        "{tree}.pb.gz"
+        "{tree}.pb.gz",
         "{tree}.metadata.tsv.gz"
     run:
         date = wildcards.tree.split(".")[0].split("-")[1:]
         link = "http://hgdownload.soe.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/{}/{}/{}/".format(*date)
-        shell("wget " + link + output[0])
+        fn = wildcards.tree.split(".")[0] + ".all.masked.pb.gz"
+        shell("wget " + link + fn)
+        shell("mv {} {}".format(fn, output[0]))
         shell("wget " + link + output[1])
