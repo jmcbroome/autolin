@@ -97,7 +97,7 @@ rule compute_region_weights_and_dates:
     input:
         "{tree}.metadata.tsv"
     output:
-        "{tree}.sample_weights.tsv"
+        temp("{tree}.sample_weights.tsv")
     run:
         mdf = pd.read_csv(input[0],sep='\t')
         def get_dt(dstr):
@@ -116,7 +116,7 @@ rule compute_region_weights_and_dates:
 
 rule compute_escape_weights:
     output:
-        "escape_weights.tsv"
+        temp("escape_weights.tsv")
     run:
         with open("escape_weights.tsv","w+") as wout:
             edf = pd.read_csv(config['escape_data'])
