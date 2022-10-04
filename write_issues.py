@@ -152,7 +152,7 @@ def write_json(t, nid, parent_nid, name, prefix, size, metafile = None):
 def main():
     args = argparser()
     t = bte.MATree(args.tree)
-    tn = args.tree.split(".")[0]
+    tn = ".".join(args.tree.split(".")[:-2])
     df = pd.read_csv(args.input,sep='\t')
     mdf = pd.read_csv(args.metadata,sep='\t')
     mdf['date'] = mdf.date.apply(get_date)
