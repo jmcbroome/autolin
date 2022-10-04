@@ -166,7 +166,7 @@ def main():
     elif args.skip:
         print("Found {} samples in *_samples.txt files; fresh proposals containing any of these samples will not be reported as new lineages.".format(len(samset)))
     i = 0
-    for ind,d in df.sort_values(args.sort).iterrows():
+    for ind,d in df.sort_values(args.sort, ascending=False).iterrows():
         if i >= args.number:
             break
         if "(" in d.proposed_sublineage:
