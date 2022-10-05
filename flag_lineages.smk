@@ -63,9 +63,9 @@ rule propose:
     run:
         d = {"input":input[0]}
         for k,v in config['lineage_params'].items():
-            if k not in d.keys():
-                continue
-            elif v in ['None','True','False']:
+            if k == 'weight_params' or k == 'earliest_date':
+                continue #these are used elsewhere.
+            if v in ['None','True','False']:
                 d[k] = eval(v)
             else:
                 d[k] = v
@@ -83,6 +83,7 @@ rule propose:
                     command_args.append("--" + str(k))
             else:
                 command_args.append("--" + str(k) + " " + str(v))
+        print("FULL PROPOSAL COMMAND: ", "python3 propose_sublineages.py " + " ".join(command_args))
         shell("python3 propose_sublineages.py " + " ".join(command_args))
 
 rule unzip_metadata:
