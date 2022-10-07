@@ -64,7 +64,7 @@ def write_report(row, prefix, samplenames, samplecount, treename = None, treenod
                         continue
                     if m[0] == 'S':
                         spikes.append(m)
-                total += 1
+                    total += 1
     if len(spikes) == 0:
         fstr.append("\nIt is not defined by any spike protein changes. It has {} defining protein changes overall.".format(total))
     else:
