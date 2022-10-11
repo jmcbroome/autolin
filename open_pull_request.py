@@ -58,6 +58,21 @@ def get_reps(nid, t, target = 5000):
             break
     return samples
 
+def open_pr(branchname,automerge):
+    g = Github(os.getenv("API_KEY"))
+    repo = g.get_user().get_repo("auto-pango-designation")
+    sb = repo.get_branch("master")
+    repo.create_git_ref(ref='refs/heads/' + branchname, sha=sb.commit.sha)
+    for git_file in ["lineages.csv","lineage_notes.txt"]:
+        contents = repo.get_contents(git_file)
+        with open(git_file) as inf:
+            newcontent = inf.read()
+        repo.update_file(contents.path, "Updating with new lineages.", newcontent, contents.sha, branch=branchname)
+    repo.create_pull(title="New Lineages Update: " + branchname, body="", head=branchname, base="master")    
+    if automerge:
+        head = repo.get_branch(branchname)
+        repo.merge("master", head.commit.sha, "automerge")        
+
 def main():
     args = argparser()
     t = bte.MATree(args.tree)
@@ -77,6 +92,7 @@ def main():
     # else:
     #     with open(args.prefix + "prbody.txt","w+") as outf:
     #         print(write_pr_body(pdf), file=outf)
+    open_pr(args.prefix + str(pdf.shape[0]), args.repository, args.automerge)
     print(f"Updates lineages.txt and lineages.csv with {pdf.shape[0]} additional lineages.")
 
 if __name__ == "__main__":
