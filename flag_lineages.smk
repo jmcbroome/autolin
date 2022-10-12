@@ -54,7 +54,7 @@ rule generate_report:
 
 rule propose:
     input:
-        "{tree}.pb.gz",
+        "{tree}.filtered.pb",
         "escape_weights.tsv",
         "{tree}.sample_weights.tsv"
     output:
@@ -138,3 +138,20 @@ rule download_tree:
         shell("wget " + link + fn)
         shell("mv {} {}".format(fn, output[0]))
         shell("wget " + link + output[1])
+
+rule filter_tree:
+    input:
+        "{tree}.pb.gz",
+        "{tree}.nodestats.txt"
+    output:
+        "{tree}.filtered.pb"
+    shell:
+        "python3 filter_reversions.py {input[0]} {input[1]} {output}"
+
+rule collect_node_statistics:
+    input:
+        "{tree}.pb.gz"
+    output:
+        "{tree}.nodestats.txt"
+    shell:
+        "./matUtils summary -i {input} -N {output}"
