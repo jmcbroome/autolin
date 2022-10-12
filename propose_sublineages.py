@@ -36,14 +36,10 @@ def dists_to_root(tree, node, mutweights = {}):
     #gives back a dict with all nodes and their respective dist from root
     #initalize this with our starting node at 0, its our "root" whether its the actual tree root or not
     nodes = {node.id:0}
-    def recursive_dists_to_roots(node):
-        if node.id == tree.root.id:
-            nodes[node.id] = 0   #becomes 0 because it is the root
-        for child in node.children:
-            if (node.id == tree.root.id):
-                dist = compute_mutation_weight(child,mutweights)
-            else:
-                dist = nodes[node.id] + compute_mutation_weight(child,mutweights)  
+    def recursive_dists_to_roots(snode):
+        bweight = nodes[snode.id]
+        for child in snode.children:
+            dist = bweight + compute_mutation_weight(child, mutweights)  
             nodes[child.id] = dist
             recursive_dists_to_roots(child)
     recursive_dists_to_roots(node)
@@ -91,15 +87,20 @@ def evaluate_candidate(a, nid, sum_and_counts, dist_to_root, minimum_size=0,mini
         nid (str): The node id of the candidate branch.
     """
     node_sum, node_count = sum_and_counts.get(nid,[0,0])
-    if node_sum == 0 or node_count == 0:
+    if node_count <= minimum_size:
+        return 0
+    if node_sum == 0 or node_count <= 0:
         return 0
     candidate_to_parent = dist_to_root[nid] - dist_to_root[a]
+    if candidate_to_parent < minimum_distinction:
+        return 0
     mean_distances = node_sum/node_count
     if (mean_distances + candidate_to_parent) == 0:   #avoid divide by 0
         candidate_value = 0
     else:
         # print("DEBUG: {} {} {} {}".format(node_count, max([(node_count-minimum_size+1),0]), candidate_to_parent, max([candidate_to_parent-minimum_distinction+1,0])))
-        candidate_value = max([(node_count-minimum_size+1),0]) * (max([candidate_to_parent-minimum_distinction+1,0])) / (mean_distances + candidate_to_parent)
+        # candidate_value = max([(node_count-minimum_size+1),0]) * (max([candidate_to_parent-minimum_distinction+1,0])) / (mean_distances + candidate_to_parent)
+        candidate_value = node_count * candidate_to_parent / (mean_distances + candidate_to_parent)
     return candidate_value
 
 def evaluate_lineage(t, dist_to_root, anid, candidates, sum_and_count, minimum_size = 0, minimum_distinction = 0, banned = set()):
@@ -112,7 +113,7 @@ def evaluate_lineage(t, dist_to_root, anid, candidates, sum_and_count, minimum_s
     good_candidates = []
     for c in candidates:
         if not c.is_leaf() and c.id not in banned:
-            cscore = evaluate_candidate(anid, c.id, sum_and_count, dist_to_root,minimum_size,minimum_distinction)
+            cscore = evaluate_candidate(anid, c.id, sum_and_count, dist_to_root, minimum_size,minimum_distinction)
             if cscore > 0:
                 good_candidates.append((cscore,c))
     if len(good_candidates) == 0:
@@ -257,9 +258,6 @@ def propose(args):
         translation = t.translate(fasta_file=args.reference,gtf_file=args.gtf)
         for nid, aav in translation.items():
             for aa in aav:
-                if aa.gene == "ORF1a":
-                    #ignore ORF1a in our translation; its redundant with ORF1ab and leads to multicounting.
-                    continue
                 if args.missense and aa.is_synonymous():
                     continue
                 if args.gene != None:

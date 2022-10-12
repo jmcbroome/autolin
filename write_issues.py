@@ -53,39 +53,44 @@ def write_report(row, prefix, samplenames, samplecount, treename = None, treenod
         fstr.append("\n{} has a Bloom Lab escape score of {:.2f}, -{:.2f} over the parent lineage.".format(row.proposed_sublineage, row.sublineage_escape, row.net_escape_gain))
     else:
         fstr.append("\n{} has a Bloom Lab escape score of {:.2f}, unchanged from the parent lineage.".format(row.proposed_sublineage, row.sublineage_escape))
-    total_mutations = 0
-    last_mutations = []
     if type(row.mutations) != float:
-        iterate = row.mutations.split(">")
-        lastchanges = iterate[-1].split(",")
-        for n in iterate:
-            for m in n.split(","):
-                if len(m) > 0:
-                    total += 1
-        last_mutations = iterate[-1].split(",")
-    if len(last_mutations) == 0:
-        fstr.append("\nNo mutations are associated directly with the lineage root node. It has {} mutations from the parent lineage.".format(total_mutations))
+        fstr.append("\nFull mutational path from the ancestral lineage to the proposed sublineage: {}".format(row.mutations))
     else:
-        fstr.append("\nThe following mutations are directly associated with the lineage root node: {}. There are {} mutations from the parent lineage overall.".format(",".join(last_mutations), total_mutations))
+        fstr.append("\nWARNING: No mutations are associated with this proposal. Check parameters!")
+    if type(row.aa_changes) != float:
+        fstr.append("\nFull amino acid change path from the ancestral lineage to the proposed sublineage: {}".format(row.aa_changes))
+    else:
+        fstr.append("\nNo amino acid changes occurred between the ancestral and the proposed sublineage.")
+    # total_mutations = 0
+    # last_mutations = []
+    # if type(row.mutations) != float:
+    #     iterate = row.mutations.split(">")
+    #     lastchanges = iterate[-1].split(",")
+    #     for n in iterate:
+    #         for m in n.split(","):
+    #             if len(m) > 0:
+    #                 total_mutations += 1
+    #     last_mutations = iterate[-1].split(",")
+    # if len(last_mutations) == 0:
+    #     fstr.append("\nNo mutations are associated directly with the lineage root node. It has {} mutations from the parent lineage.".format(total_mutations))
+    # else:
+    #     fstr.append("\nThe following mutations are directly associated with the lineage root node: {}. There are {} mutations from the parent lineage overall.".format(",".join(last_mutations), total_mutations))
     spikes = []
-    total = 0
-    lastchanges = []
+    # total = 0
+    # lastchanges = []
     if type(row.aa_changes) != float:
         iterate = row.aa_changes.split(">")
-        lastchanges = iterate[-1].split(",")
+        # lastchanges = [i for i in iterate[-1].split(",") if i != ""]
         for n in iterate:
             for m in n.split(","):
                 if len(m) > 0:
-                    #ignore ORF1a, its redundant with the ORF1ab translation for counts
-                    if m.split(":") == "ORF1a":
-                        continue
                     if m[0] == 'S':
                         spikes.append(m)
-                    total += 1
-    if len(lastchanges) == 0:
-        fstr.append("\nNo protein changes are associated directly with the lineage root node. It has {} protein changes from .".format(total))
-    else:
-        fstr.append("\nThe following protein changes are directly associated with the lineage root node: {}. There are {} defining protein changes overall.".format(",".join(lastchanges), total))
+                    # total += 1
+    # if len(lastchanges) == 0:
+    #     fstr.append("\nNo protein changes are associated directly with the lineage root node. It has {} protein changes from the parent lineage.".format(total))
+    # else:
+    #     fstr.append("\nThe following protein changes are directly associated with the lineage root node: {}. There are {} defining protein changes from the parent lineage overall.".format(",".join(lastchanges), total))
     if row.host_jump:
         fstr.append("\nIt represents a zoonotic event!")
     fstr.append("\nNOTE: The following links search by genotype and parent lineage; they may additionally highlight samples outside of the proposed clade that convergently evolved the same mutations or that were added after this lineage was inferred, ")

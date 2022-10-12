@@ -156,13 +156,6 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
                 for a in translation.get(n.id,[]):
                     if a.original_aa == a.alternative_aa:
                         continue #ignore synonymous mutations
-                    if a.gene == "ORF1ab":
-                        #if there's an accompanying orf1a mutation, ignore this
-                        if any([(sa.gene == 'ORF1a' and sa.nuc == a.nuc) for sa in aas]):
-                            continue
-                        else:
-                            #else, set its gene to ORF1b so that taxonium search links are generated correctly.
-                            a.gene = "ORF1b"
                     aas.append(a)
                 if n.id == row.parent_nid:
                     past_parent = True

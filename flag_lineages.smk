@@ -60,6 +60,8 @@ rule propose:
     output:
         "{tree}.proposed.tsv",
         "{tree}.proposed.pb"
+    log:
+        "{tree}.proposal.log"
     run:
         d = {"input":input[0]}
         for k,v in config['lineage_params'].items():
@@ -84,7 +86,7 @@ rule propose:
             else:
                 command_args.append("--" + str(k) + " " + str(v))
         print("FULL PROPOSAL COMMAND: ", "python3 propose_sublineages.py " + " ".join(command_args))
-        shell("python3 propose_sublineages.py " + " ".join(command_args))
+        shell("python3 propose_sublineages.py " + " ".join(command_args) + "> " + log[0])
 
 rule unzip_metadata:
     input:
