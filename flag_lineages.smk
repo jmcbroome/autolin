@@ -155,5 +155,9 @@ rule collect_node_statistics:
         "{tree}.pb.gz"
     output:
         "{tree}.nodestats.txt"
+    conda:
+        #usher is being handled in a separate conda environment due to ongoing environment conflicts over boost-cpp versions between UShER and earlier versions of BTE
+        #at some point these should be resolved and UShER/matUtils can be added to the env.yml. 
+        "usher.yml"
     shell:
-        "./matUtils summary -i {input} -N {output}"
+        "matUtils summary -i {input} -N {output}"
