@@ -260,10 +260,10 @@ def propose(args):
             for aa in aav:
                 if args.missense and aa.is_synonymous():
                     continue
-                if args.gene != None:
-                    if aa.gene != args.gene:
-                        continue
-                mutweights[(int(aa.nt_index),aa.alternative_nt,nid)] = aaweights.get((aa.gene, aa.aa_index, aa.aa), 1)
+                if args.gene == None or args.gene == "None" or aa.gene == args.gene:
+                    mutweights[(int(aa.nt_index),aa.alternative_nt,nid)] = aaweights.get((aa.gene, aa.aa_index, aa.aa), 1)
+        if len(mutweights) == 0:
+            raise ValueError("No mutations have weights after translation! Check parameters")
     if args.mutweights != None:
         mutweights.update(parse_mutweights(args.mutweights))
         # print("DEBUG: Mutweights that are not 1: ", {k:v for k,v in mutweights.items() if v != 1})
