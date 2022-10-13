@@ -1,6 +1,6 @@
 escape_data: "./SARS2_RBD_Ab_escape_maps/processed_data/escape_data.csv"
 reference_genome: "./reference/NC_045512v2.fa"
-reference_gtf: "./reference/ncbiGenes.gtf"
+reference_gtf: "./reference/ncbiGenes.noORF1a.gtf"
 genbank: "./reference/hu1.gb"
 lineage_params:
   floor: 10 #minimum score value. Set higher to filter smaller and less valuable proposals. Set to 0 to report any and all sublineage proposals that pass other filters.
@@ -9,7 +9,7 @@ lineage_params:
   gene: None #consider only mutations within the indicated gene as part of the haplotype. Set to None to use the whole genome.
   minsamples: 15 #minimum sample weight. Default weighting scheme is 1 per sample (more for underrepresented countries when country_weighting is used).
   distinction: 2 #minimum mutation weight. Default weighting scheme is 1 per mutation (more for mutations associated with immune escape if escape_weighting is used).
-  recursive: False #allow proposal of additional sublineages from newly proposed lineages. 
+  recursive: False #allow proposal of additional sublineages from newly proposed lineages. Can break links for recursively proposed lineage issue output.
   cutoff: 0.99 #stop adding new serial (exclusive) lineage annotations when this percentage of samples is labeled.
   earliest_date: '2022-07-30' #ignore all samples before this date. Set to 2019-12-01 to examine the entire pandemic.
   weight_params:

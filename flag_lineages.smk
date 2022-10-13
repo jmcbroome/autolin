@@ -54,12 +54,14 @@ rule generate_report:
 
 rule propose:
     input:
-        "{tree}.pb.gz",
+        "{tree}.filtered.pb",
         "escape_weights.tsv",
         "{tree}.sample_weights.tsv"
     output:
         "{tree}.proposed.tsv",
         "{tree}.proposed.pb"
+    log:
+        "{tree}.proposal.log"
     run:
         d = {"input":input[0]}
         for k,v in config['lineage_params'].items():
@@ -84,7 +86,7 @@ rule propose:
             else:
                 command_args.append("--" + str(k) + " " + str(v))
         print("FULL PROPOSAL COMMAND: ", "python3 propose_sublineages.py " + " ".join(command_args))
-        shell("python3 propose_sublineages.py " + " ".join(command_args))
+        shell("python3 propose_sublineages.py " + " ".join(command_args) + "> " + log[0])
 
 rule unzip_metadata:
     input:
@@ -138,3 +140,24 @@ rule download_tree:
         shell("wget " + link + fn)
         shell("mv {} {}".format(fn, output[0]))
         shell("wget " + link + output[1])
+
+rule filter_tree:
+    input:
+        "{tree}.pb.gz",
+        "{tree}.nodestats.txt"
+    output:
+        "{tree}.filtered.pb"
+    shell:
+        "python3 filter_reversions.py {input[0]} {input[1]} {output}"
+
+rule collect_node_statistics:
+    input:
+        "{tree}.pb.gz"
+    output:
+        "{tree}.nodestats.txt"
+    conda:
+        #usher is being handled in a separate conda environment due to ongoing environment conflicts over boost-cpp versions between UShER and earlier versions of BTE
+        #at some point these should be resolved and UShER/matUtils can be added to the env.yml. 
+        "usher.yml"
+    shell:
+        "matUtils summary -i {input} -N {output}"

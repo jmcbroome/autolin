@@ -33,7 +33,7 @@ It recognizes the tree name as a wildcard from the snakemake command. Input data
 The command given to snakemake defines this wildcard. For example, the command 
 
 ```
-snakemake -c1 -s flag_lineages.smk mytree.proposed.report.tsv
+snakemake -c1 --use-conda -s flag_lineages.smk mytree.proposed.report.tsv
 ```
 
 Will look for the input files
@@ -48,8 +48,8 @@ And perform the pipeline. Parameters for lineage calling are found in config.yam
 Other useful outputs supported by the pipeline include a Taxonium view jsonl with annotations and calling scripts that automatically post issues to github.
 
 ```
-snakemake -c1 -s flag_lineages.smk mytree.jsonl.gz
-snakemake -c1 -s flag_lineages.smk mytree.issues.log
+snakemake -c1 --use-conda -s flag_lineages.smk mytree.jsonl.gz
+snakemake -c1 --use-conda -s flag_lineages.smk mytree.issues.log
 ```
 
 The fastest way to get going is to download the latest tree.
@@ -57,7 +57,7 @@ The fastest way to get going is to download the latest tree.
 ```
 wget http://hgdownload.soe.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/public-latest.all.masked.pb.gz
 wget http://hgdownload.soe.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/public-latest.metadata.tsv.gz
-snakemake -c1 -s flag_lineages.smk public-latest.all.masked.proposed.report.tsv
+snakemake -c1 --use-conda -s flag_lineages.smk public-latest.all.masked.proposed.report.tsv
 ```
 
 Alternatively, the user may use any of the scripts directly as CLI tools, as they all use argparse or otherwise consider command line arguments. Please see the individual help messages for these scripts.
