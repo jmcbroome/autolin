@@ -75,7 +75,8 @@ def write_report(row, prefix, samplenames, samplecount, treename = None, treenod
     #     fstr.append("\nNo mutations are associated directly with the lineage root node. It has {} mutations from the parent lineage.".format(total_mutations))
     # else:
     #     fstr.append("\nThe following mutations are directly associated with the lineage root node: {}. There are {} mutations from the parent lineage overall.".format(",".join(last_mutations), total_mutations))
-    spikes = []
+    fortitle = []
+    nonspike_fortitle_count = 0
     # total = 0
     # lastchanges = []
     if type(row.aa_changes) != float:
@@ -85,7 +86,10 @@ def write_report(row, prefix, samplenames, samplecount, treename = None, treenod
             for m in n.split(","):
                 if len(m) > 0:
                     if m[0] == 'S':
-                        spikes.append(m)
+                        fortitle.append(m)
+                    elif nonspike_fortitle_count <= 3:
+                        fortitle.append(m)
+                        nonspike_fortitle_count += 1
                     # total += 1
     # if len(lastchanges) == 0:
     #     fstr.append("\nNo protein changes are associated directly with the lineage root node. It has {} protein changes from the parent lineage.".format(total))
@@ -103,7 +107,7 @@ def write_report(row, prefix, samplenames, samplecount, treename = None, treenod
     remainder = samplecount - len(samplenames)
     if remainder > 0:
         fstr.append("As well as {} additional samples.".format(remainder))
-    return fstr, ','.join(spikes), common
+    return fstr, ','.join(fortitle), common
 
 def write_sample_list(t, mdf, nid, name, prefix, count, skipset):
     selection = []
@@ -201,12 +205,12 @@ def main():
             print("{} has no metadata or includes samples already covered by open proposals; skipping.".format(d.proposed_sublineage))
             continue
         print("Writing report...")
-        report, spikechanges, common_country = write_report(d, args.prefix, selected_samples, scount, args.tree, d.proposed_sublineage_nid)
+        report, fortitle, common_country = write_report(d, args.prefix, selected_samples, scount, args.tree, d.proposed_sublineage_nid)
         titlestring = "{} {} samples".format(d.proposed_sublineage_size, d.parent)
         if common_country != None:
             titlestring += " in {}".format(common_country)
-        if len(spikechanges) > 0:
-            titlestring += " with {}".format(spikechanges)
+        if len(fortitle) > 0:
+            titlestring += " with {}".format(fortitle)
         if args.local:
             with open(args.prefix + d.proposed_sublineage + ".md","w+") as outf:
                 print("Title: " + titlestring, file=outf)
