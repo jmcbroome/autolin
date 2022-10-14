@@ -25,5 +25,5 @@ request_params:
   designation_repo: "./auto-pango-designation" #path to a local clone of https://github.com/cov-lineages/pango-designation or one of its forks. Required for pull request generation.
   local_only: False #update local files and print the text for a pull request body to a local markdown file instead of opening a branch and pull request on the targeted repository.
   auto_merge: False #immediately merge the generated pull request, if your api_key has permissions.
-  representative_number: 5000 #add up to this many lineage representative samples per lineage to lineages.csv.
-  valid_samples: "all_sample_names_04_09_2022.txt" #use samples from this file when expanding lineages.csv. Set to "None" to use any samples from the tree.
+  representative_number: 1000 #add up to this many lineage representative samples per lineage to lineages.csv.
+  valid_samples: "None" #use samples from this file when expanding lineages.csv. Set to "None" to use any samples from the tree.
