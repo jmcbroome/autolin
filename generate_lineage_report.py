@@ -114,7 +114,7 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
         child_mset = t.get_haplotype(row.proposed_sublineage_nid)
         parent_mset = t.get_haplotype(row.parent_nid)
         net_mset = child_mset - parent_mset
-        mset_str = "[{}-of:{}]".format(len(net_mset), ", ".join(list(net_mset)))
+        mset_str = "[{}-of:{}]".format(len(net_mset), ", ".join([m[1:] for m in net_mset]))
         query = parse.urlencode([('variantQuery','nextcladePangoLineage:' + row.parent + "*&" + mset_str)])
         url = "https://cov-spectrum.org/explore/World/AllSamples/AllTimes/variants?" + query
         return url
