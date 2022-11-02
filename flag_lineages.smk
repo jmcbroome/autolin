@@ -20,6 +20,21 @@ rule taxonium:
     shell:
         "usher_to_taxonium -i {input[0]} -o {output} -m {input[1]} -c auto_annotation,pango_lineage_usher,country -g {config[genbank]}"
 
+rule open_pull_request:
+    input:
+        "{tree}.proposed.report.tsv",
+        "{tree}.proposed.pb"
+    output:
+        "{tree}.pullreq.log"
+    run:
+        commandstr = "python3 open_pull_request.py -r {config[request_params][designation_repo]} -i {input[0]} -t {input[1]} -s {config[request_params][valid_samples]} -c {config[request_params][representative_number]}"
+        if eval(str(config["request_params"]["local_only"])):
+            commandstr += " --local"
+        if eval(str(config["request_params"]["auto_merge"])):
+            commandstr += " --automerge"
+        commandstr += " >{output}"
+        shell(commandstr)
+
 rule write_issues:
     input:
         "{tree}.proposed.report.tsv",
