@@ -92,6 +92,27 @@ def open_pr(branchname,trepo,automerge):
         ref = repo.get_git_ref(f"heads/{branchname}")
         ref.delete()
 
+def update_lineage_files(pdf, t, repo, rep, allowed):
+    lincsv = repo + "/lineages.csv"
+    skip = set()
+    with open(lincsv, "a") as outf:
+        for i,row in pdf.iterrows():
+            sn = row.proposed_sublineage_nid
+            rsamples = get_reps(sn, t, rep, allowed)
+            if len(rsamples) == 0:
+                print("WARNING: no representative samples found for lineage {}! Skipping".format(row.proposed_sublineage),file=sys.stderr)
+                skip.add(row.proposed_sublineage)
+                continue
+            for rs in rsamples:
+                print(rs + "," + row.proposed_sublineage, file=outf)
+    print(f"{pdf.shape[0]-len(skip)} lineages added to lineages.csv; {len(skip)} skipped for having no high quality descendents.")
+    notecsv = repo + "/lineage_notes.txt"
+    pdf = pdf[~pdf.proposed_sublineage.isin(skip)]
+    with open(notecsv, "a") as outf:
+        pdf.apply(lambda row: print(write_note(row), file=outf), axis=1)
+    print(f"Updated lineages.txt and lineages.csv with {pdf.shape[0]} additional lineages.")
+    return pdf
+
 def main():
     args = argparser()
     pdf = pd.read_csv(args.input,sep='\t')
@@ -102,24 +123,7 @@ def main():
                 allowed.add(entry.strip())
         print(f"{len(allowed)} total samples are available for updating lineages.csv",file=sys.stderr)
     t = bte.MATree(args.tree)
-    lincsv = args.repository + "/lineages.csv"
-    skip = set()
-    with open(lincsv, "a") as outf:
-        for i,row in pdf.iterrows():
-            sn = row.proposed_sublineage_nid
-            rsamples = get_reps(sn, t, args.representative, allowed)
-            if len(rsamples) == 0:
-                print("WARNING: no representative samples found for lineage {}! Skipping".format(row.proposed_sublineage),file=sys.stderr)
-                skip.add(row.proposed_sublineage)
-                continue
-            for rs in rsamples:
-                print(rs + "," + row.proposed_sublineage, file=outf)
-    print(f"{pdf.shape[0]-len(skip)} lineages added to lineages.csv; {len(skip)} skipped for having no high quality descendents.")
-    notecsv = args.repository + "/lineage_notes.txt"
-    pdf = pdf[~pdf.proposed_sublineage.isin(skip)]
-    with open(notecsv, "a") as outf:
-        pdf.apply(lambda row: print(write_note(row), file=outf), axis=1)
-    print(f"Updated lineages.txt and lineages.csv with {pdf.shape[0]} additional lineages.")
+    pdf = update_lineage_files(pdf, t, args.repository, args.representative, allowed)
     if not args.local:
         open_pr(str(pdf.shape[0]) + "_" + args.tree, args.repository, args.automerge)
         print("Github updated.")
