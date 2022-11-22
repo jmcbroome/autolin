@@ -1,5 +1,4 @@
 import bte
-import sys
 import argparse
 
 def process_mstr(mstr):
@@ -348,10 +347,14 @@ def propose(args):
                 if best_score <= args.floor:
                     # print("DEBUG: Best doesn't pass threshold with score {} out of {}".format(best_score, args.floor))
                     break
-                newname = ann + "." + str(serial)
+                if ann[:5] == 'auto.':
+                    prefix = ann
+                else:
+                    prefix = "auto." + ann
+                newname = prefix + "." + str(serial)
                 while newname in original_annotations:
                     serial += 1
-                    newname = ann + '.' + str(serial)
+                    newname = prefix + '.' + str(serial)
                 for anc in t.rsearch(best_node.id,True):
                     used_nodes.add(anc.id)
                 new_annotes[newname] = best_node.id
