@@ -1,9 +1,10 @@
+import sys
+sys.path.append("~/bin:")
 import argparse
 import pandas as pd
 import bte
 import numpy as np
 import os
-import sys
 from github import Github
 from pango_aliasor.aliasor import Aliasor
 global_aliasor = Aliasor()
@@ -92,15 +93,19 @@ def open_pr(branchname,trepo,automerge):
         ref = repo.get_git_ref(f"heads/{branchname}")
         ref.delete()
 
-def update_lineage_files(pdf, t, repo, rep, allowed):
+def update_lineage_files(pdf, t, repo, rep, allowed, annotes):
     lincsv = repo + "/lineages.csv"
     skip = set()
     with open(lincsv, "a") as outf:
         for i,row in pdf.iterrows():
-            sn = row.proposed_sublineage_nid
+            sn = annotes.get(row.proposed_sublineage, None)
+            if sn == None:
+                print(f"WARNING: lineage {row.proposed_sublineage} not found on the input tree! Skipping")
+                skip.add(row.proposed_sublineage)
+                continue
             rsamples = get_reps(sn, t, rep, allowed)
             if len(rsamples) == 0:
-                print("WARNING: no representative samples found for lineage {}! Skipping".format(row.proposed_sublineage),file=sys.stderr)
+                print(f"WARNING: no representative samples found for lineage {row.proposed_sublineage}! Skipping",file=sys.stderr)
                 skip.add(row.proposed_sublineage)
                 continue
             for rs in rsamples:
@@ -123,7 +128,8 @@ def main():
                 allowed.add(entry.strip())
         print(f"{len(allowed)} total samples are available for updating lineages.csv",file=sys.stderr)
     t = bte.MATree(args.tree)
-    pdf = update_lineage_files(pdf, t, args.repository, args.representative, allowed)
+    tannotes = t.dump_annotations()
+    pdf = update_lineage_files(pdf, t, args.repository, args.representative, allowed, tannotes)
     if not args.local:
         open_pr(str(pdf.shape[0]) + "_" + args.tree, args.repository, args.automerge)
         print("Github updated.")
