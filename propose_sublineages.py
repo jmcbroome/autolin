@@ -1,4 +1,5 @@
 import bte
+import sys
 import argparse
 
 def process_mstr(mstr):
@@ -352,7 +353,7 @@ def propose(args):
                 else:
                     prefix = "auto." + ann
                 newname = prefix + "." + str(serial)
-                while newname in original_annotations:
+                while newname in original_annotations or newname.lstrip("auto.") in original_annotations:
                     serial += 1
                     newname = prefix + '.' + str(serial)
                 for anc in t.rsearch(best_node.id,True):

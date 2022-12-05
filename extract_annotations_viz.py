@@ -9,6 +9,6 @@ def pull_annotations(sample):
     except ValueError:
         print("WARNING: Can't load node object and obtain annotations for {}".format(sample))
         return "None"
-    return n.most_recent_annotation()[0]
+    return n.most_recent_annotation()[-1]
 df['auto_annotation'] = df.strain.apply(pull_annotations)
 df.to_csv(sys.argv[3],sep='\t',index=False)
