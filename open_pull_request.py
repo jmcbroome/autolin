@@ -86,7 +86,7 @@ def get_reps(nid, t, target = 5000, allowed = set()):
     #         break
     return samples
 
-def open_pr(branchname,trepo,automerge):
+def open_pr(branchname,trepo,automerge,reqname,pdf):
     g = Github(os.getenv("API_KEY"))
     repo = g.get_user().get_repo("auto-pango-designation")
     sb = repo.get_branch("master")
@@ -98,7 +98,10 @@ def open_pr(branchname,trepo,automerge):
         with open(trepo+"/"+git_file) as inf:
             newcontent = inf.read()
         repo.update_file(contents.path, "Updating with new lineages.", newcontent, contents.sha, branch=branchname)
-    repo.create_pull(title="New Lineages Update: " + branchname, body="", head=branchname, base="master")
+    pdf['Lineage Name'] = pdf.proposed_sublineage.apply(lambda x:x.lstrip("auto."))
+    pdf = pdf[['proposed_sublineage_size','earliest_child','latest_child','child_regions','aa_changes','link','taxlink']]
+    pdf.rename({"proposed_sublineage_size":"Size","earliest_child":"Earliest Appearance","latest_child":"Latest Appearance","child_regions":"Circulating In","link":"View On Cov-Spectrum","taxlink":"View On Taxonium (Public Only)","aa_changes":"Associated Changes"},axis=0)
+    repo.create_pull(title="New Lineages Update: " + reqname, body=pdf.to_markdown(index=False), head=branchname, base="master")
     if automerge:
         #merge to master, then delete this branch.
         head = repo.get_branch(branchname)
@@ -144,10 +147,10 @@ def main():
     tannotes = t.dump_annotations()
     pdf = update_lineage_files(pdf, t, args.repository, args.representative, allowed, tannotes)
     if not args.local:
-        # reqname = str(pdf.shape[0]) + "_" + "_".join(args.tree.split("/")[-1].split(".")[:2])
+        branch = str(pdf.shape[0]) + "_" + "_".join(args.tree.split("/")[-1].split(".")[:2])
         date = args.tree.split("/")[-1].split(".")[1]
         reqname = f"{str(pdf.shape[0])} new lineages active through {date}"
-        open_pr(reqname, args.repository, args.automerge)
+        open_pr(branch, args.repository, args.automerge, reqname)
         print("Github updated.")
 if __name__ == "__main__":
     main()
