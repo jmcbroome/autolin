@@ -21,6 +21,19 @@ def argparser():
     args = parser.parse_args()
     return args
 
+def compress_lineage(al):
+    #handling to deal with recompression of auto-extended names that may or may not be in the keys.
+    fields = al.split(".")
+    outer_fields = []
+    while len(fields) > 0:
+        name = ".".join(fields)
+        if name in global_aliasor.__dict__['alias_dict'].keys():
+            return global_aliasor.compress(name) + ".".join(outer_fields)
+        else:
+            outer_fields.append(fields[-1])
+            fields = fields[:-1]
+    return al
+
 def write_note(row):
     unalias = global_aliasor.uncompress(row.proposed_sublineage.lstrip("auto."))
     regions_to_report = []
@@ -48,7 +61,7 @@ def write_note(row):
                     aastr.append(aa)
                 else:
                     aastr.remove(opp)
-    outstr = [global_aliasor.partial_compress(unalias,up_to=1) + "\t", "Alias of " + unalias]
+    outstr = [compress_lineage(unalias) + "\t", "Alias of " + unalias]
     if len(aastr) > 0:
         outstr.append(", defined by " + ", ".join(aastr))
     if len(cstr) > 0:
@@ -131,7 +144,10 @@ def main():
     tannotes = t.dump_annotations()
     pdf = update_lineage_files(pdf, t, args.repository, args.representative, allowed, tannotes)
     if not args.local:
-        open_pr(str(pdf.shape[0]) + "_" + "_".join(args.tree.split("/")[-1].split(".")[:2]), args.repository, args.automerge)
+        # reqname = str(pdf.shape[0]) + "_" + "_".join(args.tree.split("/")[-1].split(".")[:2])
+        date = args.tree.split("/")[-1].split(".")[1]
+        reqname = f"{str(pdf.shape[0])} new lineages active through {date}"
+        open_pr(reqname, args.repository, args.automerge)
         print("Github updated.")
 if __name__ == "__main__":
     main()
