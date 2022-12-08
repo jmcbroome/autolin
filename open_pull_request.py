@@ -22,7 +22,7 @@ def argparser():
     return args
 
 def write_note(row):
-    unalias = global_aliasor.uncompress(row.proposed_sublineage)
+    unalias = global_aliasor.uncompress(row.proposed_sublineage.lstrip("auto."))
     regions_to_report = []
     cumprop = 0
     for cr, propstr in zip(row.child_regions.split(","),row.child_region_percents.split(",")):
@@ -48,7 +48,7 @@ def write_note(row):
                     aastr.append(aa)
                 else:
                     aastr.remove(opp)
-    outstr = [global_aliasor.compress(unalias[5:]) + "\t", "Alias of " + unalias]
+    outstr = [global_aliasor.partial_compress(unalias,up_to=1) + "\t", "Alias of " + unalias]
     if len(aastr) > 0:
         outstr.append(", defined by " + ", ".join(aastr))
     if len(cstr) > 0:
@@ -109,7 +109,7 @@ def update_lineage_files(pdf, t, repo, rep, allowed, annotes):
                 skip.add(row.proposed_sublineage)
                 continue
             for rs in rsamples:
-                print(rs + "," + row.proposed_sublineage, file=outf)
+                print(rs + "," + row.proposed_sublineage.lstrip("auto."), file=outf)
     print(f"{pdf.shape[0]-len(skip)} lineages added to lineages.csv; {len(skip)} skipped for having no high quality descendents.")
     notecsv = repo + "/lineage_notes.txt"
     pdf = pdf[~pdf.proposed_sublineage.isin(skip)]
@@ -131,7 +131,7 @@ def main():
     tannotes = t.dump_annotations()
     pdf = update_lineage_files(pdf, t, args.repository, args.representative, allowed, tannotes)
     if not args.local:
-        open_pr(str(pdf.shape[0]) + "_" + args.tree, args.repository, args.automerge)
+        open_pr(str(pdf.shape[0]) + "_" + "_".join(args.tree.split("/")[-1].split(".")[:2]), args.repository, args.automerge)
         print("Github updated.")
 if __name__ == "__main__":
     main()
