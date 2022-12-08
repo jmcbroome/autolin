@@ -48,7 +48,7 @@ def write_note(row):
                     aastr.append(aa)
                 else:
                     aastr.remove(opp)
-    outstr = ["Alias of " + unalias]
+    outstr = [global_aliasor.compress(unalias[5:]) + "\t", "Alias of " + unalias]
     if len(aastr) > 0:
         outstr.append(", defined by " + ", ".join(aastr))
     if len(cstr) > 0:
