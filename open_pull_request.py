@@ -27,15 +27,19 @@ def compress_lineage(al):
     outer_fields = []
     while len(fields) > 0:
         name = ".".join(fields)
-        if name in global_aliasor.__dict__['alias_dict'].keys():
-            return global_aliasor.compress(name) + ".".join(outer_fields)
-        else:
+        try:
+            fn = global_aliasor.compress(name) 
+            if len(outer_fields) > 0:
+                return fn + '.' + ".".join(reversed(outer_fields))
+            else:
+                return fn
+        except KeyError:
             outer_fields.append(fields[-1])
             fields = fields[:-1]
     return al
 
 def write_note(row):
-    unalias = global_aliasor.uncompress(row.proposed_sublineage.lstrip("auto."))
+    unalias = global_aliasor.uncompress(row.proposed_sublineage)
     regions_to_report = []
     cumprop = 0
     for cr, propstr in zip(row.child_regions.split(","),row.child_region_percents.split(",")):
@@ -61,7 +65,7 @@ def write_note(row):
                     aastr.append(aa)
                 else:
                     aastr.remove(opp)
-    outstr = [compress_lineage(unalias) + "\t", "Alias of " + unalias]
+    outstr = ['auto.' + compress_lineage(unalias[:5]) + "\t", "Alias of " + unalias]
     if len(aastr) > 0:
         outstr.append(", defined by " + ", ".join(aastr))
     if len(cstr) > 0:
@@ -98,9 +102,11 @@ def open_pr(branchname,trepo,automerge,reqname,pdf):
         with open(trepo+"/"+git_file) as inf:
             newcontent = inf.read()
         repo.update_file(contents.path, "Updating with new lineages.", newcontent, contents.sha, branch=branchname)
-    pdf['Lineage Name'] = pdf.proposed_sublineage.apply(lambda x:x.lstrip("auto."))
-    pdf = pdf[['proposed_sublineage_size','earliest_child','latest_child','child_regions','aa_changes','link','taxlink']]
-    pdf.rename({"proposed_sublineage_size":"Size","earliest_child":"Earliest Appearance","latest_child":"Latest Appearance","child_regions":"Circulating In","link":"View On Cov-Spectrum","taxlink":"View On Taxonium (Public Only)","aa_changes":"Associated Changes"},axis=0)
+    # pdf['Lineage Name'] = pdf.proposed_sublineage.apply(lambda x:x.lstrip("auto."))
+    pdf['link'] = pdf.link.apply(lambda x:f"[View On Cov-Spectrum]({x})")
+    pdf['taxlink'] = pdf.taxlink.apply(lambda x:f"[View On Taxonium (Public Samples Only)]({x})")
+    pdf = pdf[['proposed_sublineage', 'parent', 'proposed_sublineage_size','earliest_child','final_date','final_size','child_regions','aa_changes','link','taxlink']]
+    pdf = pdf.rename({"proposed_sublineage":"Lineage Name", "parent":"Parent Lineage", "proposed_sublineage_size":"Initial Size","earliest_child":"Earliest Appearance","final_date":"Last Checked","final_size":"Latest Size","child_regions":"Initially Circulating In","link":"View On Cov-Spectrum","taxlink":"View On Taxonium (Public Samples Only)","aa_changes":"Associated Changes"},axis=1)
     repo.create_pull(title="New Lineages Update: " + reqname, body=pdf.to_markdown(index=False), head=branchname, base="master")
     if automerge:
         #merge to master, then delete this branch.
@@ -150,7 +156,7 @@ def main():
         branch = str(pdf.shape[0]) + "_" + "_".join(args.tree.split("/")[-1].split(".")[:2])
         date = args.tree.split("/")[-1].split(".")[1]
         reqname = f"{str(pdf.shape[0])} new lineages active through {date}"
-        open_pr(branch, args.repository, args.automerge, reqname)
+        open_pr(branch, args.repository, args.automerge, reqname, pdf)
         print("Github updated.")
 if __name__ == "__main__":
     main()
