@@ -65,7 +65,7 @@ def write_note(row):
                     aastr.append(aa)
                 else:
                     aastr.remove(opp)
-    outstr = ['auto.' + compress_lineage(unalias[:5]) + "\t", "Alias of " + unalias]
+    outstr = ['auto.' + compress_lineage(unalias[5:]) + "\t", "Alias of " + unalias]
     if len(aastr) > 0:
         outstr.append(", defined by " + ", ".join(aastr))
     if len(cstr) > 0:
@@ -102,7 +102,6 @@ def open_pr(branchname,trepo,automerge,reqname,pdf):
         with open(trepo+"/"+git_file) as inf:
             newcontent = inf.read()
         repo.update_file(contents.path, "Updating with new lineages.", newcontent, contents.sha, branch=branchname)
-    # pdf['Lineage Name'] = pdf.proposed_sublineage.apply(lambda x:x.lstrip("auto."))
     pdf['link'] = pdf.link.apply(lambda x:f"[View On Cov-Spectrum]({x})")
     pdf['taxlink'] = pdf.taxlink.apply(lambda x:f"[View On Taxonium (Public Samples Only)]({x})")
     pdf = pdf[['proposed_sublineage', 'parent', 'proposed_sublineage_size','earliest_child','final_date','final_size','child_regions','aa_changes','link','taxlink']]
@@ -131,7 +130,7 @@ def update_lineage_files(pdf, t, repo, rep, allowed, annotes):
                 skip.add(row.proposed_sublineage)
                 continue
             for rs in rsamples:
-                print(rs + "," + row.proposed_sublineage.lstrip("auto."), file=outf)
+                print(rs + "," + row.proposed_sublineage, file=outf)
     print(f"{pdf.shape[0]-len(skip)} lineages added to lineages.csv; {len(skip)} skipped for having no high quality descendents.")
     notecsv = repo + "/lineage_notes.txt"
     pdf = pdf[~pdf.proposed_sublineage.isin(skip)]
