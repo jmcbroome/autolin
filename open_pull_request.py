@@ -39,7 +39,7 @@ def compress_lineage(al):
     return al
 
 def write_note(row):
-    unalias = global_aliasor.uncompress(row.proposed_sublineage)
+    unalias = global_aliasor.uncompress(row.proposed_sublineage[5:])
     regions_to_report = []
     cumprop = 0
     for cr, propstr in zip(row.child_regions.split(","),row.child_region_percents.split(",")):
@@ -65,7 +65,7 @@ def write_note(row):
                     aastr.append(aa)
                 else:
                     aastr.remove(opp)
-    outstr = ['auto.' + compress_lineage(unalias[5:]) + "\t", "Alias of " + unalias]
+    outstr = ['auto.' + compress_lineage(unalias) + "\t", "Alias of auto." + unalias]
     if len(aastr) > 0:
         outstr.append(", defined by " + ", ".join(aastr))
     if len(cstr) > 0:
