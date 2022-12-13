@@ -48,14 +48,33 @@ def write_taxonium_url(parentlin, mutations):
     queries = parse.urlencode([("srch",'[' + "".join(str(searchbase).split()).replace("'",'"') + ']'),("enabled",'{"aa1":"true"}'),("zoomToSearch",0)])
     return urlbase + queries
 
+def compute_stratified_growth(mdf):
+    mdf['date'] = mdf.date.apply(get_date)
+    rc = mdf.groupby(['country','autolin',pd.Grouper(key='fdate', freq='1W')]).strain.count().reset_index()
+    rc = rc.rename({"strain":"count"},axis=1).sort_values("fdate")
+    rc['cumcount'] = rc.groupby(['country','autolin'])['count'].cumsum()
+    rc['abs_strat_growth'] = rc.groupby(['country','autolin'])['cumcount'].diff()
+    rc['strat_growth'] = rc.groupby(['country','autolin'])['cumcount'].pct_change()
+    growdf = rc[(rc.abs_strat_growth > 5)].replace(np.inf, np.nan).dropna().groupby(['pango_lineage_usher','country']).strat_growth.describe()
+    gp = growdf.groupby("autolin")
+    return gp['mean'].mean().to_dict()
+
 def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
+    print("Filling out metadata with terminal lineages.")
+    def get_latest_lineage(s):
+        for anc in t.rsearch(s):
+            if len(anc.annotations) > 0:
+                if len(anc.annotations[0]) > 0:
+                    return anc.annotations[0]
+    mdf['autolin'] = mdf.strain.apply(get_latest_lineage)
+    print("Computing geographically stratified growth values.")
+    lingrow = compute_stratified_growth(mdf)
+    pdf['mean_stratified_growth'] = pdf.proposed_sublineage.apply(lambda x:lingrow.get(x,np.nan))
     mdf.set_index('strain',inplace=True)
+    #parent lineage size has to be inclusive to get a sensible percentage.
     def parent_lineage_size(row):
         samples = t.get_leaves_ids(row.parent_nid)
         return len(samples)
-    def sublineage_size(row):
-        subsamples = t.get_leaves_ids(row.proposed_sublineage_nid)
-        return len(subsamples)
     print("Computing sublineage percentages.")
     pdf['parent_lineage_size'] = pdf.apply(parent_lineage_size,axis=1)
     pdf['proposed_sublineage_percent'] = round(pdf.proposed_sublineage_size/pdf.parent_lineage_size,2)
@@ -69,46 +88,58 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
     pdf['parent_parsimony'] = pdf.apply(parsimony_parent,axis=1)
     pdf['proposed_sublineage_parsimony'] = pdf.apply(parsimony_child,axis=1)
     pdf['parsimony_percent'] = round(pdf.proposed_sublineage_parsimony/pdf.parent_parsimony,2)
-    mdf['date'] = mdf.date.apply(get_date)
+    # def get_start_ends(row):
+    #     parent_samples = set(t.get_leaves_ids(row.parent_nid))
+    #     child_samples = set(t.get_leaves_ids(row.proposed_sublineage_nid))
+    #     parent_only = parent_samples - child_samples
+    #     try:
+    #         parent_dates = mdf.loc[[p for p in parent_only if p in mdf.index]].date
+    #         child_dates = mdf.loc[[c for c in child_samples if c in mdf.index]].date
+    #         return min(parent_dates),max(parent_dates),min(child_dates),max(child_dates)
+    #     except KeyboardInterrupt:
+    #         raise KeyboardInterrupt
+    #     except IndexError:
+    #         return np.nan,np.nan,np.nan,np.nan
     def get_start_ends(row):
-        parent_samples = set(t.get_leaves_ids(row.parent_nid))
-        child_samples = set(t.get_leaves_ids(row.proposed_sublineage_nid))
-        parent_only = parent_samples - child_samples
         try:
-            parent_dates = mdf.loc[[p for p in parent_only if p in mdf.index]].date
-            child_dates = mdf.loc[[c for c in child_samples if c in mdf.index]].date
+            parent_dates = mdf[mdf.autolin == row.parent].date
+            child_dates = mdf[mdf.autolin == row.proposed_sublineage].date
             return min(parent_dates),max(parent_dates),min(child_dates),max(child_dates)
         except KeyboardInterrupt:
             raise KeyboardInterrupt
         except IndexError:
-            return np.nan,np.nan,np.nan,np.nan
+            return np.nan,np.nan,np.nan,np.nan    
     print("Computing start and end dates.")
     applied_pdf = pdf.apply(lambda row: get_start_ends(row), axis='columns', result_type='expand')
     pdf = pd.concat([pdf, applied_pdf], axis='columns')
     pdf = pdf.rename({0:'earliest_parent',1:'latest_parent',2:'earliest_child',3:'latest_child'},axis=1)
     pdf['log_score'] = np.log10(pdf.proposed_sublineage_score)
     print("Tracking country composition.")
-    def get_regions(nid):
+    def get_regions(lin):
         try:
-            return ",".join(list(mdf.loc[[l for l in t.get_leaves_ids(nid) if l in mdf.index]].country.value_counts().index))
-        except:
+            # return ",".join(list(mdf.loc[[l for l in t.get_leaves_ids(nid) if l in mdf.index]].country.value_counts().index))
+            return ",".join(list(mdf[mdf.autolin == lin].country.value_counts().index))
+        except KeyError:
             return np.nan
-    def get_regions_percents(nid):        
+    def get_regions_percents(lin):        
         try:
-            return ",".join([str(round(p,2)) for p in mdf.loc[[l for l in t.get_leaves_ids(nid) if l in mdf.index]].country.value_counts(normalize=True)])
-        except:
+            # return ",".join([str(round(p,2)) for p in mdf.loc[[l for l in t.get_leaves_ids(nid) if l in mdf.index]].country.value_counts(normalize=True)])
+            return ",".join([str(round(p,2)) for p in mdf[mdf.autolin == lin].country.value_counts(normalize=True)])
+        except KeyError:
             return np.nan
-    pdf['child_regions'] = pdf.proposed_sublineage_nid.apply(get_regions)
+    pdf['child_regions'] = pdf.proposed_sublineage.apply(get_regions)
+    pdf['child_regions_count'] = pdf.child_regions.apply(lambda x:x.count(",")+1)
     # pdf['ParentRegions'] = pdf.parent_nid.apply(get_regions)
-    pdf['child_region_percents'] = pdf.proposed_sublineage_nid.apply(get_regions_percents)
+    pdf['child_region_percents'] = pdf.proposed_sublineage.apply(get_regions_percents)
     # pdf['ParentRegionPercents'] = pdf.parent_nid.apply(get_regions_percents)
-    def host_jump(row):
+    def host_jump(lin):
         try:
-            return mdf.loc[[l for l in t.get_leaves_ids(proposed_sublineage_nid) if l in mdf.index]].host.nunique() > 1
+            return mdf[mdf.autolin == lin].host.nunique() > 1
+            # return mdf.loc[[l for l in t.get_leaves_ids(proposed_sublineage_nid) if l in mdf.index]].host.nunique() > 1
         except:
             return False
     print("Identifying host jumps.")
-    pdf['host_jump'] = pdf.apply(host_jump,axis=1)
+    pdf['host_jump'] = pdf.proposed_sublineage.apply(host_jump,axis=1)
     print("Generating cov-spectrum URLs.")
     def generate_url(row):
         child_mset = t.get_haplotype(row.proposed_sublineage_nid)

@@ -17,6 +17,9 @@ def argparser():
     parser.add_argument("-l", "--local", action='store_true', help="Set to write issues to local files only. Default opens a pull request to https://github.com/jmcbroome/auto-pango-designation/issues from a custom branch")
     parser.add_argument("-c", "--representative", default=5000, type=int, help="Include up to this many representative samples for each lineage in lineages.csv.")
     parser.add_argument("-s", "--samples", default="None", help="Use only samples from the indicated file to update lineages.csv. Default behavior uses any samples.")
+    parser.add_argument("-g", "--growth",type=float,default=0,help="Set to a minimum mean geography-stratified proportional growth value to report a lineage.")
+    parser.add_argument("-m", "--maximum",type=int,default=20,help="Include up to this many lineages in the body of the pull request. Default 20")
+    parser.add_argument("-c", "--countries",type=int,default=1,help="Set to a minimum number of countries the lineage exists in to report it. Default is 1.")
     parser.add_argument("--automerge", action='store_true', help='Immediately merge this pull request if permissions allow.')
     args = parser.parse_args()
     return args
@@ -88,7 +91,7 @@ def get_reps(nid, t, target = 5000, allowed = set()):
     #             samples.append(node.id)
     #     if len(samples) >= target:
     #         break
-    return samples
+    # return samples
 
 def open_pr(branchname,trepo,automerge,reqname,pdf):
     g = Github(os.getenv("API_KEY"))
@@ -142,6 +145,8 @@ def update_lineage_files(pdf, t, repo, rep, allowed, annotes):
 def main():
     args = argparser()
     pdf = pd.read_csv(args.input,sep='\t')
+    pdf = pdf[(pdf['mean_stratified_growth'] >= args.growth) & (pdf[pdf.child_region_count >= args.countries])].sort_values("mean_stratified_growth")
+    pdf = pdf[:args.maximum]
     allowed = set()
     if args.samples != "None" and args.samples != None:
         with open(args.samples) as inf:
