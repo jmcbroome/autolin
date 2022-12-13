@@ -107,7 +107,7 @@ def open_pr(branchname,trepo,automerge,reqname,pdf):
         repo.update_file(contents.path, "Updating with new lineages.", newcontent, contents.sha, branch=branchname)
     pdf['link'] = pdf.link.apply(lambda x:f"[View On Cov-Spectrum]({x})")
     pdf['taxlink'] = pdf.taxlink.apply(lambda x:f"[View On Taxonium (Public Samples Only)]({x})")
-    pdf = pdf[['proposed_sublineage', 'parent', 'proposed_sublineage_size','earliest_child','final_date','final_size','child_regions','aa_changes','link','taxlink']]
+    pdf = pdf[['proposed_sublineage', 'parent', 'proposed_sublineage_size','earliest_child','latest_child','child_regions','aa_changes','link','taxlink']]
     pdf = pdf.rename({"proposed_sublineage":"Lineage Name", "parent":"Parent Lineage", "proposed_sublineage_size":"Initial Size","earliest_child":"Earliest Appearance","final_date":"Last Checked","final_size":"Latest Size","child_regions":"Initially Circulating In","link":"View On Cov-Spectrum","taxlink":"View On Taxonium (Public Samples Only)","aa_changes":"Associated Changes"},axis=1)
     repo.create_pull(title="New Lineages Update: " + reqname, body=pdf.to_markdown(index=False), head=branchname, base="master")
     if automerge:

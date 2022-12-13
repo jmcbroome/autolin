@@ -72,11 +72,11 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
     pdf['mean_stratified_growth'] = pdf.proposed_sublineage.apply(lambda x:lingrow.get(x,np.nan))
     mdf.set_index('strain',inplace=True)
     #parent lineage size has to be inclusive to get a sensible percentage.
-    def parent_lineage_size(row):
-        samples = t.get_leaves_ids(row.parent_nid)
+    def parent_lineage_size(pnid):
+        samples = t.get_leaves_ids(pnid)
         return len(samples)
     print("Computing sublineage percentages.")
-    pdf['parent_lineage_size'] = pdf.apply(parent_lineage_size,axis=1)
+    pdf['parent_lineage_size'] = pdf.parent_nid.apply(parent_lineage_size)
     pdf['proposed_sublineage_percent'] = round(pdf.proposed_sublineage_size/pdf.parent_lineage_size,2)
     def parsimony_parent(row):
         parent_parsimony = sum([len(n.mutations) for n in t.depth_first_expansion(row.parent_nid)])
@@ -90,7 +90,7 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
     pdf['parsimony_percent'] = round(pdf.proposed_sublineage_parsimony/pdf.parent_parsimony,2)
     def get_start_ends(row):
         try:
-            parent_dates = mdf[mdf.autolin == row.parent].date
+            parent_dates = mdf[mdf.pango_lineage_usher == row.parent].date
             child_dates = mdf[mdf.autolin == row.proposed_sublineage].date
             return min(parent_dates),max(parent_dates),min(child_dates),max(child_dates)
         except KeyboardInterrupt:
