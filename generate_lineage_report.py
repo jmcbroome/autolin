@@ -90,8 +90,8 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
     pdf['parsimony_percent'] = round(pdf.proposed_sublineage_parsimony/pdf.parent_parsimony,2)
     def get_start_ends(row):
         try:
-            parent_dates = mdf[mdf.pango_lineage_usher == row.parent].date
-            child_dates = mdf[mdf.autolin == row.proposed_sublineage].date
+            parent_dates = mdf[mdf.pango_lineage_usher == row.parent].date.dropna()
+            child_dates = mdf[mdf.autolin == row.proposed_sublineage].date.dropna()
             return min(parent_dates),max(parent_dates),min(child_dates),max(child_dates)
         except KeyboardInterrupt:
             raise KeyboardInterrupt
