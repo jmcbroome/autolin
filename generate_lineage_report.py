@@ -49,7 +49,6 @@ def write_taxonium_url(parentlin, mutations):
     return urlbase + queries
 
 def compute_stratified_growth(mdf):
-    mdf['date'] = mdf.date.apply(get_date)
     rc = mdf.groupby(['country','autolin',pd.Grouper(key='date', freq='1W')]).strain.count().reset_index()
     rc = rc.rename({"strain":"count"},axis=1).sort_values("date")
     rc['cumcount'] = rc.groupby(['country','autolin'])['count'].cumsum()
@@ -66,6 +65,7 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
             if len(anc.annotations) > 0:
                 if len(anc.annotations[0]) > 0:
                     return anc.annotations[0]
+    mdf['date'] = mdf.date.apply(get_date)
     mdf['autolin'] = mdf.strain.apply(get_latest_lineage)
     print("Computing geographically stratified growth values.")
     lingrow = compute_stratified_growth(mdf)
