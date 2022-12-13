@@ -27,7 +27,9 @@ rule open_pull_request:
     output:
         "{tree}.pullreq.log"
     run:
-        commandstr = "python3 open_pull_request.py -r {config[request_params][designation_repo]} -i {input[0]} -t {input[1]} -s {config[request_params][valid_samples]} -c {config[request_params][representative_number]}"
+        commandstr = "python3 open_pull_request.py -r {config[request_params][designation_repo]} \
+            -i {input[0]} -t {input[1]} -s {config[request_params][valid_samples]} -c {config[request_params][representative_number]} \
+            -o {config[request_params][countries]} -m {config[request_params][maximum]} -g {config[request_params][growth]}"
         if eval(str(config["request_params"]["local_only"])):
             commandstr += " --local"
         if eval(str(config["request_params"]["auto_merge"])):

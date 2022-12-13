@@ -19,7 +19,7 @@ def argparser():
     parser.add_argument("-s", "--samples", default="None", help="Use only samples from the indicated file to update lineages.csv. Default behavior uses any samples.")
     parser.add_argument("-g", "--growth",type=float,default=0,help="Set to a minimum mean geography-stratified proportional growth value to report a lineage.")
     parser.add_argument("-m", "--maximum",type=int,default=20,help="Include up to this many lineages in the body of the pull request. Default 20")
-    parser.add_argument("-c", "--countries",type=int,default=1,help="Set to a minimum number of countries the lineage exists in to report it. Default is 1.")
+    parser.add_argument("-o", "--countries",type=int,default=1,help="Set to a minimum number of countries the lineage exists in to report it. Default is 1.")
     parser.add_argument("--automerge", action='store_true', help='Immediately merge this pull request if permissions allow.')
     args = parser.parse_args()
     return args
@@ -145,8 +145,13 @@ def update_lineage_files(pdf, t, repo, rep, allowed, annotes):
 def main():
     args = argparser()
     pdf = pd.read_csv(args.input,sep='\t')
-    pdf = pdf[(pdf['mean_stratified_growth'] >= args.growth) & (pdf[pdf.child_region_count >= args.countries])].sort_values("mean_stratified_growth")
-    pdf = pdf[:args.maximum]
+    print(pdf.mean_stratified_growth.describe())
+    print(pdf.child_regions_count.describe())
+    print(args.growth, args.countries)
+    pdf = pdf[(pdf.mean_stratified_growth >= args.growth) & (pdf.child_regions_count >= args.countries)].sort_values("mean_stratified_growth")
+    print(pdf)
+    pdf = pdf.head(args.maximum)
+    print(pdf)
     allowed = set()
     if args.samples != "None" and args.samples != None:
         with open(args.samples) as inf:
