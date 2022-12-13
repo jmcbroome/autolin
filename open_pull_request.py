@@ -145,13 +145,8 @@ def update_lineage_files(pdf, t, repo, rep, allowed, annotes):
 def main():
     args = argparser()
     pdf = pd.read_csv(args.input,sep='\t')
-    print(pdf.mean_stratified_growth.describe())
-    print(pdf.child_regions_count.describe())
-    print(args.growth, args.countries)
     pdf = pdf[(pdf.mean_stratified_growth >= args.growth) & (pdf.child_regions_count >= args.countries)].sort_values("mean_stratified_growth")
-    print(pdf)
     pdf = pdf.head(args.maximum)
-    print(pdf)
     allowed = set()
     if args.samples != "None" and args.samples != None:
         with open(args.samples) as inf:
