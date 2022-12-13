@@ -11,7 +11,7 @@ lineage_params:
   distinction: 1 #minimum mutation weight. Default weighting scheme is 1 per mutation (more for mutations associated with immune escape if escape_weighting is used).
   recursive: False #allow proposal of additional sublineages from newly proposed lineages. Can break links for recursively proposed lineage issue output.
   cutoff: 0.99 #stop adding new serial (exclusive) lineage annotations when this percentage of samples is labeled.
-  earliest_date: '2022-07-30' #ignore all samples before this date. Set to 2019-12-01 to examine the entire pandemic.
+  earliest_date: '2022-11-13' #ignore all samples before this date. Set to 2019-12-01 to examine the entire pandemic.
   weight_params:
     escape_weighting: 0 #Higher values means mutations associated with immune escape by the Bloom lab DMS are given higher weight. Set to 0 to disable escape weighting. 
     country_weighting: 0 #Higher values means samples from underrepresented countries count more. Set to 0 to disable country weighting. 
