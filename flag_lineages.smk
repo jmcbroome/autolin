@@ -163,9 +163,17 @@ rule filter_tree:
         "{tree}.pb.gz",
         "{tree}.nodestats.txt"
     output:
-        "{tree}.filtered.pb"
+        "{tree}.filtered.allan.pb"
     shell:
         "python3 filter_reversions.py {input[0]} {input[1]} {output}"
+
+rule simplify_annotations:
+    input:
+        "{tree}.filtered.allan.pb"
+    output:
+        "{tree}.filtered.pb"
+    shell:
+        "python3 strip_annotations.py {input} {output}"
 
 rule collect_node_statistics:
     input:
