@@ -322,7 +322,7 @@ def propose(args):
         new_annotes = {}
         used_nodes = global_used_nodes.copy()
         for ann,nid in outer_annotes.items():
-            serial = 0
+            serial = 1
             rbfs = t.breadth_first_expansion(nid, True) #takes the name
             if len(sample_weights) == 0:
                 parent_leaf_count = len([n for n in rbfs if n.is_leaf()])
