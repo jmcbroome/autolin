@@ -51,10 +51,10 @@ def write_taxonium_url(parentlin, mutations):
 def compute_stratified_growth(mdf):
     rc = mdf.groupby(['country','autolin',pd.Grouper(key='date', freq='1W')]).strain.count().reset_index()
     rc = rc.rename({"strain":"count"},axis=1).sort_values("date")
-    rc['cumcount'] = rc.groupby(['country','autolin'])['count'].cumsum()
-    rc['abs_strat_growth'] = rc.groupby(['country','autolin'])['cumcount'].diff()
-    rc['strat_growth'] = rc.groupby(['country','autolin'])['cumcount'].pct_change()
-    gp = rc[(rc.abs_strat_growth > 5)].replace(np.inf, np.nan).dropna().groupby("autolin").strat_growth.mean()
+    cc = rc.groupby(["date","country"])['count'].sum().to_dict()
+    rc['country_perc'] = rc.apply(lambda row:row['count'] / cc.get((row.date,row.country)),axis=1)
+    rc['perc_change'] = rc.groupby(['country','autolin'])['country_perc'].diff()
+    gp = rc[(rc['count'] > 5)].replace(np.inf, np.nan).dropna().groupby("autolin").perc_change.median()
     return gp.to_dict()
 
 def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):

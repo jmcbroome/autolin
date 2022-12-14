@@ -7,14 +7,14 @@ lineage_params:
   annotation: B.1.1.529 #consider only this lineage and its descendents for sublineage proposal. Set to None to consider all lineages. 
   missense: True #consider only mutations that lead to amino acid changes as part of the haplotype. 
   gene: None #consider only mutations within the indicated gene as part of the haplotype. Set to None to use the whole genome.
-  minsamples: 15 #minimum sample weight. Default weighting scheme is 1 per sample (more for underrepresented countries when country_weighting is used).
+  minsamples: 10 #minimum sample weight. Default weighting scheme is 1 per sample (more for underrepresented countries when country_weighting is used).
   distinction: 1 #minimum mutation weight. Default weighting scheme is 1 per mutation (more for mutations associated with immune escape if escape_weighting is used).
   recursive: False #allow proposal of additional sublineages from newly proposed lineages. Can break links for recursively proposed lineage issue output.
   cutoff: 0.99 #stop adding new serial (exclusive) lineage annotations when this percentage of samples is labeled.
-  earliest_date: '2022-11-13' #ignore all samples before this date. Set to 2019-12-01 to examine the entire pandemic.
+  earliest_date: '2022-11-01' #ignore all samples before this date. Set to 2019-12-01 to examine the entire pandemic.
   weight_params:
     escape_weighting: 0 #Higher values means mutations associated with immune escape by the Bloom lab DMS are given higher weight. Set to 0 to disable escape weighting. 
-    country_weighting: 0 #Higher values means samples from underrepresented countries count more. Set to 0 to disable country weighting. 
+    country_weighting: 10 #Higher values means samples from underrepresented countries count more. Set to 0 to disable country weighting. 
 reporting_params:
   sort_by: "proposed_sublineage_score" #sort the results by this column.
   number: 20 #report the top X lineages in issues.
