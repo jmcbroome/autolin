@@ -54,9 +54,8 @@ def compute_stratified_growth(mdf):
     rc['cumcount'] = rc.groupby(['country','autolin'])['count'].cumsum()
     rc['abs_strat_growth'] = rc.groupby(['country','autolin'])['cumcount'].diff()
     rc['strat_growth'] = rc.groupby(['country','autolin'])['cumcount'].pct_change()
-    growdf = rc[(rc.abs_strat_growth > 5)].replace(np.inf, np.nan).dropna().groupby(['autolin','country']).strat_growth.describe()
-    gp = growdf.groupby("autolin")
-    return gp['mean'].mean().to_dict()
+    gp = rc[(rc.abs_strat_growth > 5)].replace(np.inf, np.nan).dropna().groupby("autolin").strat_growth.mean()
+    return gp.to_dict()
 
 def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
     print("Filling out metadata with terminal lineages.")
