@@ -152,7 +152,7 @@ def main():
     pdf = pd.read_csv(args.input,sep='\t')
     pdf = pdf[(pdf.mean_stratified_growth >= args.growth) & (pdf.child_regions_count >= args.countries)].sort_values("mean_stratified_growth")
     if args.active_since != None:
-        pdf = pdf[(pdf.latest_child.apply(get_date) >= dt.strptime(args.active_since,"%Y-%m-%d"))]
+        pdf = pdf[(pdf.latest_child.apply(get_date) >= dt.datetime.strptime(args.active_since,"%Y-%m-%d"))]
     pdf = pdf.head(args.maximum)
     allowed = set()
     if args.samples != "None" and args.samples != None:
