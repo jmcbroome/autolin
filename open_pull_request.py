@@ -23,6 +23,7 @@ def argparser():
     parser.add_argument("-u", "--countries",type=int,default=1,help="Set to a minimum number of countries the lineage exists in to report it. Default is 1.")
     parser.add_argument("-o", "--output_report",default=None,help="Save the output report table to a tsv.")
     parser.add_argument("-a", "--active_since",default=None,help="Only report lineages actively sampled since the indicated date (formatted YYYY-MM-DD). Default reports all.")
+    parser.add_argument("-d", "--samples_different",type=int,default=5,help="Ignore proposals which aren't at least this many samples smaller than the parent to prevent mostly overlapping lineage proposals.")
     parser.add_argument("--automerge", action='store_true', help='Immediately merge this pull request if permissions allow.')
     args = parser.parse_args()
     return args
@@ -142,7 +143,7 @@ def get_date(d):
 def main():
     args = argparser()
     pdf = pd.read_csv(args.input,sep='\t')
-    pdf = pdf[(pdf.mean_stratified_growth >= args.growth) & (pdf.child_regions_count >= args.countries)].sort_values("mean_stratified_growth")
+    pdf = pdf[(pdf.mean_stratified_growth >= args.growth) & (pdf.child_regions_count >= args.countries) & (pdf.parent_lineage_size - pdf.proposed_sublineage_size >= args.samples_different)].sort_values("mean_stratified_growth")
     if args.active_since != None and args.active_since != "None":
         pdf = pdf[(pdf.latest_child.apply(get_date) >= dt.datetime.strptime(args.active_since,"%Y-%m-%d"))]
     pdf = pdf.head(args.maximum)
