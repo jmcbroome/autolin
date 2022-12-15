@@ -143,7 +143,7 @@ def main():
     args = argparser()
     pdf = pd.read_csv(args.input,sep='\t')
     pdf = pdf[(pdf.mean_stratified_growth >= args.growth) & (pdf.child_regions_count >= args.countries)].sort_values("mean_stratified_growth")
-    if args.active_since != None:
+    if args.active_since != None and args.active_since != "None":
         pdf = pdf[(pdf.latest_child.apply(get_date) >= dt.datetime.strptime(args.active_since,"%Y-%m-%d"))]
     pdf = pdf.head(args.maximum)
     allowed = set()
