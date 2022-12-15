@@ -30,3 +30,4 @@ request_params:
   countries: 1 #set a minimum number of countries a lineage must exist in to be included in the request.
   maximum: 20 #set a maximum number of lineages to include in a pull request. The top N are sorted by stratified growth.
   growth: 0.1 #set a minimum mean stratified proportional weekly periodic growth.
+  active_since: '2022-12-07' #only include lineage proposals that were actively sampled since the indicated date. Set to "None" to report all.

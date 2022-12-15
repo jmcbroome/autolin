@@ -25,16 +25,18 @@ rule open_pull_request:
         "{tree}.proposed.report.tsv",
         "{tree}.proposed.pb"
     output:
-        "{tree}.pullreq.log"
+        "{tree}.pullreq.log",
+        "{tree}.pullreq.report.tsv"
     run:
         commandstr = "python3 open_pull_request.py -r {config[request_params][designation_repo]} \
             -i {input[0]} -t {input[1]} -s {config[request_params][valid_samples]} -c {config[request_params][representative_number]} \
-            -o {config[request_params][countries]} -m {config[request_params][maximum]} -g {config[request_params][growth]}"
+            -u {config[request_params][countries]} -m {config[request_params][maximum]} -g {config[request_params][growth]} \
+            -o {output[1]} -a {config[request_params][active_since]}"
         if eval(str(config["request_params"]["local_only"])):
             commandstr += " --local"
         if eval(str(config["request_params"]["auto_merge"])):
             commandstr += " --automerge"
-        commandstr += " >{output}"
+        commandstr += " >{output[0]}"
         shell(commandstr)
 
 rule write_issues:

@@ -5,6 +5,7 @@ import pandas as pd
 import bte
 import numpy as np
 import os
+import datetime as dt
 from github import Github
 from pango_aliasor.aliasor import Aliasor
 global_aliasor = Aliasor()
@@ -19,7 +20,9 @@ def argparser():
     parser.add_argument("-s", "--samples", default="None", help="Use only samples from the indicated file to update lineages.csv. Default behavior uses any samples.")
     parser.add_argument("-g", "--growth",type=float,default=0,help="Set to a minimum mean geography-stratified proportional growth value to report a lineage.")
     parser.add_argument("-m", "--maximum",type=int,default=20,help="Include up to this many lineages in the body of the pull request. Default 20")
-    parser.add_argument("-o", "--countries",type=int,default=1,help="Set to a minimum number of countries the lineage exists in to report it. Default is 1.")
+    parser.add_argument("-u", "--countries",type=int,default=1,help="Set to a minimum number of countries the lineage exists in to report it. Default is 1.")
+    parser.add_argument("-o", "--output_report",default=None,help="Save the output report table to a tsv.")
+    parser.add_argument("-a", "--active_since",default=None,help="Only report lineages actively sampled since the indicated date (formatted YYYY-MM-DD). Default reports all.")
     parser.add_argument("--automerge", action='store_true', help='Immediately merge this pull request if permissions allow.')
     args = parser.parse_args()
     return args
@@ -105,10 +108,6 @@ def open_pr(branchname,trepo,automerge,reqname,pdf):
         with open(trepo+"/"+git_file) as inf:
             newcontent = inf.read()
         repo.update_file(contents.path, "Updating with new lineages.", newcontent, contents.sha, branch=branchname)
-    pdf['link'] = pdf.link.apply(lambda x:f"[View On Cov-Spectrum]({x})")
-    pdf['taxlink'] = pdf.taxlink.apply(lambda x:f"[View On Taxonium (Public Samples Only)]({x})")
-    pdf = pdf[['proposed_sublineage', 'parent', 'proposed_sublineage_size','earliest_child','latest_child','child_regions','aa_changes','link','taxlink']]
-    pdf = pdf.rename({"proposed_sublineage":"Lineage Name", "parent":"Parent Lineage", "proposed_sublineage_size":"Initial Size","earliest_child":"Earliest Appearance","final_date":"Last Checked","final_size":"Latest Size","child_regions":"Initially Circulating In","link":"View On Cov-Spectrum","taxlink":"View On Taxonium (Public Samples Only)","aa_changes":"Associated Changes"},axis=1)
     repo.create_pull(title="New Lineages Update: " + reqname, body=pdf.to_markdown(index=False), head=branchname, base="master")
     if automerge:
         #merge to master, then delete this branch.
@@ -142,10 +141,18 @@ def update_lineage_files(pdf, t, repo, rep, allowed, annotes):
     print(f"Updated lineages.txt and lineages.csv with {pdf.shape[0]} additional lineages.")
     return pdf
 
+def get_date(d):
+    try:
+        return dt.datetime.strptime(d,"%Y-%m-%d")
+    except:
+        return dt.datetime(year=2019,month=11,day=1)
+
 def main():
     args = argparser()
     pdf = pd.read_csv(args.input,sep='\t')
     pdf = pdf[(pdf.mean_stratified_growth >= args.growth) & (pdf.child_regions_count >= args.countries)].sort_values("mean_stratified_growth")
+    if args.active_since != None:
+        pdf = pdf[(pdf.latest_child.apply(get_date) >= dt.strptime(args.active_since,"%Y-%m-%d"))]
     pdf = pdf.head(args.maximum)
     allowed = set()
     if args.samples != "None" and args.samples != None:
@@ -156,6 +163,12 @@ def main():
     t = bte.MATree(args.tree)
     tannotes = t.dump_annotations()
     pdf = update_lineage_files(pdf, t, args.repository, args.representative, allowed, tannotes)
+    pdf['link'] = pdf.link.apply(lambda x:f"[View On Cov-Spectrum]({x})")
+    pdf['taxlink'] = pdf.taxlink.apply(lambda x:f"[View On Taxonium (Public Samples Only)]({x})")
+    pdf = pdf[['proposed_sublineage', 'parent', 'proposed_sublineage_size','earliest_child','latest_child','child_regions','aa_changes','link','taxlink']]
+    pdf = pdf.rename({"proposed_sublineage":"Lineage Name", "parent":"Parent Lineage", "proposed_sublineage_size":"Initial Size","earliest_child":"Earliest Appearance","final_date":"Last Checked","final_size":"Latest Size","child_regions":"Initially Circulating In","link":"View On Cov-Spectrum","taxlink":"View On Taxonium (Public Samples Only)","aa_changes":"Associated Changes"},axis=1)
+    if args.output_report != None:
+        pdf.to_csv(args.output_report,index=False,sep='\t')
     if not args.local:
         branch = str(pdf.shape[0]) + "_" + "_".join(args.tree.split("/")[-1].split(".")[:2])
         date = args.tree.split("/")[-1].split(".")[1]
