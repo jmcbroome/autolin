@@ -87,14 +87,6 @@ def get_reps(nid, t, target = 5000, allowed = set()):
         return total
     else:
         return list(np.random.choice(total, replace=False, size=target))
-    # samples = []
-    # for node in t.breadth_first_expansion(nid):
-    #     if node.is_leaf():
-    #         if len(allowed) == 0 or node.id in allowed:
-    #             samples.append(node.id)
-    #     if len(samples) >= target:
-    #         break
-    # return samples
 
 def open_pr(branchname,trepo,automerge,reqname,pdf):
     g = Github(os.getenv("API_KEY"))
@@ -145,7 +137,7 @@ def get_date(d):
     try:
         return dt.datetime.strptime(d,"%Y-%m-%d")
     except:
-        return dt.datetime(year=2019,month=11,day=1)
+        return np.nan
 
 def main():
     args = argparser()
@@ -166,7 +158,7 @@ def main():
     pdf['link'] = pdf.link.apply(lambda x:f"[View On Cov-Spectrum]({x})")
     pdf['taxlink'] = pdf.taxlink.apply(lambda x:f"[View On Taxonium (Public Samples Only)]({x})")
     pdf = pdf[['proposed_sublineage', 'parent', 'proposed_sublineage_size','earliest_child','latest_child','child_regions','aa_changes','link','taxlink']]
-    pdf = pdf.rename({"proposed_sublineage":"Lineage Name", "parent":"Parent Lineage", "proposed_sublineage_size":"Initial Size","earliest_child":"Earliest Appearance","final_date":"Last Checked","final_size":"Latest Size","child_regions":"Initially Circulating In","link":"View On Cov-Spectrum","taxlink":"View On Taxonium (Public Samples Only)","aa_changes":"Associated Changes"},axis=1)
+    pdf = pdf.rename({"proposed_sublineage":"Lineage Name", "parent":"Parent Lineage", "proposed_sublineage_size":"Size","earliest_child":"Earliest Appearance","latest_child":"Latest Appearance","final_date":"Last Checked","child_regions":"Circulating In","link":"View On Cov-Spectrum","taxlink":"View On Taxonium (Public Samples Only)","aa_changes":"Associated Changes"},axis=1)
     if args.output_report != None:
         pdf.to_csv(args.output_report,index=False,sep='\t')
     if not args.local:
