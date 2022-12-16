@@ -45,8 +45,7 @@ def compress_lineage(al):
             fields = fields[:-1]
     return al
 
-def write_note(row):
-    unalias = global_aliasor.uncompress(row.proposed_sublineage[5:])
+def get_region_summary(row):
     regions_to_report = []
     cumprop = 0
     for cr, propstr in zip(row.child_regions.split(","),row.child_region_percents.split(",")):
@@ -59,10 +58,22 @@ def write_note(row):
         cstr = regions_to_report[0]
     elif len(regions_to_report) == 2:
         cstr = regions_to_report[0] + " and " + regions_to_report[1]
-    else:
+    elif len(regions_to_report) == 3:
         cstr = ", ".join(regions_to_report[:-1]) + ", and " + regions_to_report[-1]
+    else:
+        cstr = ", ".join(regions_to_report[:3]) + f", and {len(regions_to_report)-3} additional countries."
+    return cstr
+
+def get_aa_set(row, t):
+    childhap = t.get_haplotype(row.proposed_sublineage_nid)
+    parenthap = t.get_haplotype(row.parent_nid)
+    return childhap.difference(parenthap)
+
+def write_note(row):
+    unalias = global_aliasor.uncompress(row.proposed_sublineage[5:])
+    cstr = get_region_summary(row)
     aastr = []
-    for aav in row.aa_changes.split(">"):
+    for aav in row.aa_path.split(">"):
         if len(aav) > 0:
             for aa in aav.split(","):
                 al = aa.split(":")[1]
@@ -158,8 +169,10 @@ def main():
     pdf = update_lineage_files(pdf, t, args.repository, args.representative, allowed, tannotes)
     pdf['link'] = pdf.link.apply(lambda x:f"[View On Cov-Spectrum]({x})")
     pdf['taxlink'] = pdf.taxlink.apply(lambda x:f"[View On Taxonium (Public Samples Only)]({x})")
-    pdf = pdf[['proposed_sublineage', 'parent', 'proposed_sublineage_size','earliest_child','latest_child','child_regions','aa_changes','link','taxlink']]
-    pdf = pdf.rename({"proposed_sublineage":"Lineage Name", "parent":"Parent Lineage", "proposed_sublineage_size":"Size","earliest_child":"Earliest Appearance","latest_child":"Latest Appearance","final_date":"Last Checked","child_regions":"Circulating In","link":"View On Cov-Spectrum","taxlink":"View On Taxonium (Public Samples Only)","aa_changes":"Associated Changes"},axis=1)
+    pdf['Regions'] = pdf.apply(get_region_summary,axis=1)
+    pdf['Amino Acid Changes'] = pdf.apply(get_aa_set,t,axis=1)
+    pdf = pdf[['Amino Acid Changes','Regions','proposed_sublineage', 'parent', 'proposed_sublineage_size','earliest_child','latest_child','child_regions','aa_path','link','taxlink']]
+    pdf = pdf.rename({"proposed_sublineage":"Lineage Name", "parent":"Parent Lineage", "proposed_sublineage_size":"Size","earliest_child":"Earliest Appearance","latest_child":"Latest Appearance","final_date":"Last Checked","child_regions":"Circulating In","link":"View On Cov-Spectrum","taxlink":"View On Taxonium (Public Samples Only)","aa_path":"Associated Changes"},axis=1)
     if args.output_report != None:
         pdf.to_csv(args.output_report,index=False,sep='\t')
     if not args.local:

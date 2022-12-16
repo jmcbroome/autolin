@@ -53,7 +53,7 @@ def compute_stratified_growth(mdf):
     rc = rc.rename({"strain":"count"},axis=1).sort_values("date")
     cc = rc.groupby(["date","country"])['count'].sum().to_dict()
     rc['country_perc'] = rc.apply(lambda row:row['count'] / cc.get((row.date,row.country)),axis=1)
-    rc['perc_change'] = rc.groupby(['country','autolin'])['country_perc'].diff()
+    rc['perc_change'] = rc.groupby(['country','autolin'])['country_perc'].pct_change()
     gp = rc[(rc['count'] > 5)].replace(np.inf, np.nan).dropna().groupby("autolin").perc_change.median()
     return gp.to_dict()
 
@@ -185,7 +185,7 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
             cev.append(child_escape)
             pev.append(parent_escape)
             nev.append(net_escape_gain)
-        pdf['aa_changes'] = hstrs
+        pdf['aa_path'] = hstrs
         pdf['sublineage_escape'] = cev
         pdf['parent_escape'] = pev
         pdf['net_escape_gain'] = nev   
