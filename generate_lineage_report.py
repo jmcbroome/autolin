@@ -176,8 +176,16 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
                     parent_changes.extend([a.aa_index for a in aas if a.gene == 'S' and a.aa_index in calculator.sites])
                 else:
                     child_changes.extend([a.aa_index for a in aas if a.gene == 'S' and a.aa_index in calculator.sites])
-                    hapstring.append(",".join([aav.gene+":"+aav.aa for aav in aas]))
-            hstr = ">".join(hapstring[::-1])
+                    #cancel out reversions along the path from the parent to the child for our purposes. 
+                    nodegroup = []
+                    for aav in aas:
+                        opposite = aav.gene + ":" + aav.aa[-1] + aav.aa[1:-1] + aav.aa[0]
+                        if opposite in nodegroup:
+                            nodegroup.remove(opposite)
+                        else:
+                            nodegroup.add(aav.gene + ":" + aav.aa)
+                    hapstring.append(",".join(nodegroup))
+            hstr = ",".join(hapstring) 
             child_escape = calculator.binding_retained(child_changes + parent_changes)
             parent_escape = calculator.binding_retained(parent_changes)
             net_escape_gain = parent_escape - child_escape
