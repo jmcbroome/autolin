@@ -64,11 +64,6 @@ def get_region_summary(row):
         cstr = ", ".join(regions_to_report[:3]) + f", and {len(regions_to_report)-3} additional countries."
     return cstr
 
-def get_aa_set(row, t):
-    childhap = t.get_haplotype(row.proposed_sublineage_nid)
-    parenthap = t.get_haplotype(row.parent_nid)
-    return childhap.difference(parenthap)
-
 def write_note(row):
     unalias = global_aliasor.uncompress(row.proposed_sublineage[5:])
     cstr = get_region_summary(row)
@@ -170,7 +165,11 @@ def main():
     pdf['link'] = pdf.link.apply(lambda x:f"[View On Cov-Spectrum]({x})")
     pdf['taxlink'] = pdf.taxlink.apply(lambda x:f"[View On Taxonium (Public Samples Only)]({x})")
     pdf['Regions'] = pdf.apply(get_region_summary,axis=1)
-    pdf['Amino Acid Changes'] = pdf.apply(get_aa_set,t,axis=1)
+    def get_aa_set(row):
+        childhap = t.get_haplotype(row.proposed_sublineage_nid)
+        parenthap = t.get_haplotype(row.parent_nid)
+        return childhap.difference(parenthap)
+    pdf['Amino Acid Changes'] = pdf.apply(get_aa_set,axis=1)
     pdf = pdf[['Amino Acid Changes','Regions','proposed_sublineage', 'parent', 'proposed_sublineage_size','earliest_child','latest_child','child_regions','aa_path','link','taxlink']]
     pdf = pdf.rename({"proposed_sublineage":"Lineage Name", "parent":"Parent Lineage", "proposed_sublineage_size":"Size","earliest_child":"Earliest Appearance","latest_child":"Latest Appearance","final_date":"Last Checked","child_regions":"Circulating In","link":"View On Cov-Spectrum","taxlink":"View On Taxonium (Public Samples Only)","aa_path":"Associated Changes"},axis=1)
     if args.output_report != None:
