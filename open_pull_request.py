@@ -25,6 +25,12 @@ def argparser():
     parser.add_argument("-a", "--active_since",default=None,help="Only report lineages actively sampled since the indicated date (formatted YYYY-MM-DD). Default reports all.")
     parser.add_argument("-d", "--samples_different",type=int,default=5,help="Ignore proposals which aren't at least this many samples smaller than the parent to prevent mostly overlapping lineage proposals.")
     parser.add_argument("--automerge", action='store_true', help='Immediately merge this pull request if permissions allow.')
+    parser.add_argument("-e", "--metadata", default=None,help="Path to a sample-level metadata file. Required for -M")
+    parser.add_argument("-M", "--model_growth", action='store_true', help='Infer an estimate for the exponential growth coefficient for all lineage proposals which pass other filters and contain sufficient geospatial diversity for inference.')
+    parser.add_argument("--draws",type=int,default=1000,help="Set the draws parameter for the Bayesian growth model.")
+    parser.add_argument("--tune", type=int,default=1500,help="Set the tuning parameter for the sampler.")
+    parser.add_argument("--min_country_weeks",type=int,default=5,help="Require at least this many valid data points for inference.")
+    parser.add_argument("--target_accept",type=float,default=.8,help="Set the target acceptance parameter for the sampler.")
     args = parser.parse_args()
     return args
 
@@ -156,6 +162,14 @@ def main():
     pdf = pdf[(pdf.mean_stratified_growth >= args.growth) & (pdf.child_regions_count >= args.countries) & (pdf.parent_lineage_size - pdf.proposed_sublineage_size >= args.samples_different)].sort_values("mean_stratified_growth")
     if args.active_since != None and args.active_since != "None":
         pdf = pdf[(pdf.latest_child.apply(get_date) >= dt.datetime.strptime(args.active_since,"%Y-%m-%d"))]
+    if args.model_growth:
+        from model_growth import get_growth_model
+        if args.metadata == None:
+            print("ERROR: -e must be set with -M output.")
+            sys.exit(1)
+        mdf = pd.read_csv(args.metadata,sep='\t')        
+        growd = get_growth_model(mdf, args.min_country_weeks, args.target_accept, args.tune, args.draw)
+        pdf['Exponential Growth Coefficient CI'] = growd.strain.apply(lambda x:growd.get(x,(np.nan,np.nan,np.nan))) 
     pdf = pdf.head(args.maximum)
     allowed = set()
     if args.samples != "None" and args.samples != None:
