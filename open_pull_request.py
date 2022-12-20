@@ -163,12 +163,13 @@ def main():
     if args.active_since != None and args.active_since != "None":
         pdf = pdf[(pdf.latest_child.apply(get_date) >= dt.datetime.strptime(args.active_since,"%Y-%m-%d"))]
     if args.model_growth:
+        print("Modeling growth with PyMC3.",file=sys.stderr)
         from model_growth import get_growth_model
         if args.metadata == None:
             print("ERROR: -e must be set with -M output.")
             sys.exit(1)
         mdf = pd.read_csv(args.metadata,sep='\t')        
-        growd = get_growth_model(mdf, args.min_country_weeks, args.target_accept, args.tune, args.draw)
+        growd = get_growth_model(mdf, args.min_country_weeks, args.target_accept, args.tune, args.draws)
         pdf['Exponential Growth Coefficient CI'] = growd.strain.apply(lambda x:growd.get(x,(np.nan,np.nan,np.nan))) 
         pdf['Median Growth'] = pdf['Exponential Growth Coefficient CI'].apply(lambda x:x[1])
         pdf.sort_values("Median Growth",ascending=False)
@@ -191,7 +192,10 @@ def main():
         return ",".join(list(childhap.difference(parenthap)))
     pdf['Nucleotide Changes'] = pdf.apply(get_mutation_set,axis=1)
     pdf['Amino Acid Changes'] = pdf.apply(lambda row: ",".join(get_aa_set(row)),axis=1)
-    pdf = pdf[['proposed_sublineage', 'parent', 'proposed_sublineage_size','earliest_child','latest_child','Regions','Nucleotide Changes','Amino Acid Changes','link','taxlink']]
+    targets = ['proposed_sublineage', 'parent', 'proposed_sublineage_size','earliest_child','latest_child','Regions','Nucleotide Changes','Amino Acid Changes','link','taxlink']
+    if "Exponential Growth Coefficient CI" in pdf.columns:
+        targets.append('"Exponential Growth Coefficient CI')
+    pdf = pdf[targets]
     pdf = pdf.rename({"proposed_sublineage":"Lineage Name", "parent":"Parent Lineage", "proposed_sublineage_size":"Size","earliest_child":"Earliest Appearance","latest_child":"Latest Appearance","final_date":"Last Checked","child_regions":"Circulating In","link":"View On Cov-Spectrum","taxlink":"View On Taxonium (Public Samples Only)"},axis=1)
     if args.output_report != None:
         pdf.to_csv(args.output_report,index=False,sep='\t')
