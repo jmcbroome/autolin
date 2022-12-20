@@ -31,7 +31,7 @@ def compute_mutation_weight(node,mutweights):
         dist += mweight
     return dist
 
-def dists_to_root(tree, node, mutweights = {}):
+def dists_to_root(node, mutweights = {}):
     #nodes must be a dict that gets updated on each recursion
     #gives back a dict with all nodes and their respective dist from root
     #initalize this with our starting node at 0, its our "root" whether its the actual tree root or not

@@ -16,6 +16,7 @@ def argparser():
     parser.add_argument("-m", "--metadata", help="Path to a metadata file matching the protobuf.",required=True)
     parser.add_argument("-f", "--reference", default=None, help="Path to a reference fasta file. Use with -g to annotate amino acid changes and immune escape in the expanded output.")
     parser.add_argument("-g", "--gtf", default=None, help="Path to a reference gtf file. Use with -f to annotate amino acid changes and immune escape in the expanded output.")
+    parser.add_argument("-d", "--date", default=None, help="Ignore individual samples from before this date when computing reports. Format as %Y-%m-%d")
     args = parser.parse_args()
     return args
 
@@ -57,7 +58,7 @@ def compute_stratified_growth(mdf):
     gp = rc[(rc['count'] > 5)].replace(np.inf, np.nan).dropna().groupby("autolin").perc_change.median()
     return gp.to_dict()
 
-def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
+def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None):
     print("Filling out metadata with terminal lineages.")
     def get_latest_lineage(s):
         for anc in t.rsearch(s):
@@ -65,17 +66,18 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None):
                 if len(anc.annotations[0]) > 0:
                     return anc.annotations[0]
     mdf['date'] = mdf.date.apply(get_date)
+    if mdate != None:
+        mdf = mdf[mdf.date > dt.datetime.strptime(mdate,"%Y-%m-%d")]
     mdf['autolin'] = mdf.strain.apply(get_latest_lineage)
     print("Computing geographically stratified growth values.")
     lingrow = compute_stratified_growth(mdf)
     pdf['mean_stratified_growth'] = pdf.proposed_sublineage.apply(lambda x:lingrow.get(x,np.nan))
     mdf.set_index('strain',inplace=True)
     #parent lineage size has to be inclusive to get a sensible percentage.
-    def parent_lineage_size(pnid):
-        samples = t.get_leaves_ids(pnid)
-        return len(samples)
+    def parent_lineage_size(lin):
+        return mdf[mdf.pango_lineage_usher == lin].shape[0]
     print("Computing sublineage percentages.")
-    pdf['parent_lineage_size'] = pdf.parent_nid.apply(parent_lineage_size)
+    pdf['parent_lineage_size'] = pdf.parent.apply(parent_lineage_size)
     pdf['proposed_sublineage_percent'] = round(pdf.proposed_sublineage_size/pdf.parent_lineage_size,2)
     def parsimony_parent(row):
         parent_parsimony = sum([len(n.mutations) for n in t.depth_first_expansion(row.parent_nid)])
@@ -203,7 +205,7 @@ def main():
     mdf = pd.read_csv(args.metadata,sep='\t')
     t = bte.MATree(args.input)
     pdf = pd.read_csv(args.proposed,sep='\t')
-    odf = fill_output_table(t,pdf,mdf,args.reference,args.gtf)
+    odf = fill_output_table(t,pdf,mdf,args.reference,args.gtf,args.date)
     odf.to_csv(args.output,sep='\t',index=False)
 
 if __name__ == "__main__":

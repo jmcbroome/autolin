@@ -69,7 +69,7 @@ rule generate_report:
     output:
         "{tree}.proposed.report.tsv"
     shell:
-        "python3 generate_lineage_report.py -i {input[0]} -p {input[1]} -o {output} -f {config[reference_genome]} -g {config[reference_gtf]} -m {input[2]}"
+        "python3 generate_lineage_report.py -i {input[0]} -p {input[1]} -o {output} -f {config[reference_genome]} -g {config[reference_gtf]} -m {input[2]} -d {config[lineage_params][earliest_date]}"
 
 rule propose:
     input:
