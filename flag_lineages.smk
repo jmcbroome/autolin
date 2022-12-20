@@ -37,10 +37,10 @@ rule open_pull_request:
         if eval(str(config["request_params"]["auto_merge"])):
             commandstr += " --automerge"
         if eval(str(config["request_params"]["growth_model"]["use_model"])):
-            commandstr += " --draws {config[request_params][growth_model][draws] \
-                           --tune {config[request_params][growth_model][tune] \
-                           --target_accept {config[request_params][growth_model][target_accept] \
-                           --min_country_weeks {config[request_params][growth_model][min_country_weeks]"
+            commandstr += " --draws {config[request_params][growth_model][draws]} \
+                           --tune {config[request_params][growth_model][tune]} \
+                           --target_accept {config[request_params][growth_model][target_accept]} \
+                           --min_country_weeks {config[request_params][growth_model][min_country_weeks]}"
         commandstr += " >{output[0]}"
         shell(commandstr)
 
