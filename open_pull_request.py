@@ -170,6 +170,8 @@ def main():
         mdf = pd.read_csv(args.metadata,sep='\t')        
         growd = get_growth_model(mdf, args.min_country_weeks, args.target_accept, args.tune, args.draw)
         pdf['Exponential Growth Coefficient CI'] = growd.strain.apply(lambda x:growd.get(x,(np.nan,np.nan,np.nan))) 
+        pdf['Median Growth'] = pdf['Exponential Growth Coefficient CI'].apply(lambda x:x[1])
+        pdf.sort_values("Median Growth",ascending=False)
     pdf = pdf.head(args.maximum)
     allowed = set()
     if args.samples != "None" and args.samples != None:
