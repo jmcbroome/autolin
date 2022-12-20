@@ -340,7 +340,7 @@ def propose(args):
             if len(current_child_lineages) > 0 and args.verbose:
                 print("Found {} child lineages preexisting for lineage {}; {} samples prelabeled from {} total ({}%)".format(len(current_child_lineages), ann, len(labeled)-len(global_labeled), parent_leaf_count, 100*(len(labeled)-len(global_labeled))/parent_leaf_count))
             # print("DEBUG: Checking annotation {} with {} descendent nodes.".format(nid, len(rbfs)))
-            dist_root = dists_to_root(t, t.get_node(nid), mutweights) #needs the node object, not just the name
+            dist_root = dists_to_root(t.get_node(nid), mutweights) #needs the node object, not just the name
             while True:
                 scdict, leaf_count = get_sum_and_count(rbfs, ignore = labeled, mutweights = mutweights, sampleweights = sample_weights)
                 # print("DEBUG: total distances to root {}, total sums {}".format(sum(dist_root.values()),sum([v[0] for v in scdict.values()])))
