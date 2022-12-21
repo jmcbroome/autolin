@@ -18,7 +18,6 @@ def argparser():
     parser.add_argument("-l", "--local", action='store_true', help="Set to write issues to local files only. Default opens a pull request to https://github.com/jmcbroome/auto-pango-designation/issues from a custom branch")
     parser.add_argument("-c", "--representative", default=5000, type=int, help="Include up to this many representative samples for each lineage in lineages.csv.")
     parser.add_argument("-s", "--samples", default="None", help="Use only samples from the indicated file to update lineages.csv. Default behavior uses any samples.")
-    parser.add_argument("-g", "--growth",type=float,default=0,help="Set to a minimum mean geography-stratified proportional growth value to report a lineage.")
     parser.add_argument("-m", "--maximum",type=int,default=20,help="Include up to this many lineages in the body of the pull request. Default 20")
     parser.add_argument("-u", "--countries",type=int,default=1,help="Set to a minimum number of countries the lineage exists in to report it. Default is 1.")
     parser.add_argument("-o", "--output_report",default=None,help="Save the output report table to a tsv.")
@@ -159,7 +158,7 @@ def get_date(d):
 def main():
     args = argparser()
     pdf = pd.read_csv(args.input,sep='\t')
-    pdf = pdf[(pdf.mean_stratified_growth >= args.growth) & (pdf.child_regions_count >= args.countries) & (pdf.parent_lineage_size - pdf.proposed_sublineage_size >= args.samples_different)].sort_values("mean_stratified_growth")
+    pdf = pdf[(pdf.child_regions_count >= args.countries) & (pdf.parent_lineage_size - pdf.proposed_sublineage_size >= args.samples_different)]
     if args.active_since != None and args.active_since != "None":
         pdf = pdf[(pdf.latest_child.apply(get_date) >= dt.datetime.strptime(args.active_since,"%Y-%m-%d"))]
     if args.model_growth:

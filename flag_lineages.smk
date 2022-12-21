@@ -30,7 +30,7 @@ rule open_pull_request:
     run:
         commandstr = "python3 open_pull_request.py -r {config[request_params][designation_repo]} \
             -i {input[0]} -t {input[1]} -s {config[request_params][valid_samples]} -c {config[request_params][representative_number]} \
-            -u {config[request_params][countries]} -m {config[request_params][maximum]} -g {config[request_params][growth]} \
+            -u {config[request_params][countries]} -m {config[request_params][maximum]} \
             -o {output} -a {config[request_params][active_since]} -d {config[request_params][samples_different]}"
         if eval(str(config["request_params"]["local_only"])):
             commandstr += " --local"

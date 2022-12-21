@@ -49,15 +49,6 @@ def write_taxonium_url(parentlin, mutations):
     queries = parse.urlencode([("srch",'[' + "".join(str(searchbase).split()).replace("'",'"') + ']'),("enabled",'{"aa1":"true"}'),("zoomToSearch",0)])
     return urlbase + queries
 
-def compute_stratified_growth(mdf):
-    rc = mdf.groupby(['country','autolin',pd.Grouper(key='date', freq='1W')]).strain.count().reset_index()
-    rc = rc.rename({"strain":"count"},axis=1).sort_values("date")
-    cc = rc.groupby(["date","country"])['count'].sum().to_dict()
-    rc['country_perc'] = rc.apply(lambda row:row['count'] / cc.get((row.date,row.country)),axis=1)
-    rc['perc_change'] = rc.groupby(['country','autolin'])['country_perc'].pct_change()
-    gp = rc[(rc['count'] > 5)].replace(np.inf, np.nan).dropna().groupby("autolin").perc_change.median()
-    return gp.to_dict()
-
 def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None):
     print("Filling out metadata with terminal lineages.")
     def get_latest_lineage(s):
@@ -69,9 +60,6 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None):
     if mdate != None:
         mdf = mdf[mdf.date > dt.datetime.strptime(mdate,"%Y-%m-%d")]
     mdf['autolin'] = mdf.strain.apply(get_latest_lineage)
-    print("Computing geographically stratified growth values.")
-    lingrow = compute_stratified_growth(mdf)
-    pdf['mean_stratified_growth'] = pdf.proposed_sublineage.apply(lambda x:lingrow.get(x,np.nan))
     mdf.set_index('strain',inplace=True)
     #parent lineage size has to be inclusive to get a sensible percentage.
     def parent_lineage_size(lin):
@@ -150,7 +138,7 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None):
             return np.sqrt(row.proposed_sublineage_size) / time
         except AttributeError:
             return np.nan
-    pdf['growth_score'] = pdf.apply(get_growth_score,axis=1)
+    pdf['growth_index'] = pdf.apply(get_growth_score,axis=1)
     if gtf_file != None and fa_file != None:
         print("Performing translation and computing antibody binding scores.")
         translation = t.translate(fasta_file = fa_file, gtf_file = gtf_file)
