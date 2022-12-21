@@ -169,6 +169,8 @@ def main():
             print("ERROR: -e must be set with -M output.")
             sys.exit(1)
         mdf = pd.read_csv(args.metadata,sep='\t')
+        mdf = mdf[mdf.auto_annotation.isin(pdf.proposed_sublineage)]
+        print(f"{mdf.shape[0]} samples to be used among {pdf.proposed_sublineage.nunique()} lineage models.")
         mdf['date'] = mdf.date.apply(lambda x:get_date(x))
         growd = get_growth_model(mdf, args.min_country_weeks, args.target_accept, args.tune, args.draws)
         pdf['Exponential Growth Coefficient CI'] = growd.strain.apply(lambda x:growd.get(x,(np.nan,np.nan,np.nan))) 

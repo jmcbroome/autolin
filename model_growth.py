@@ -42,5 +42,5 @@ def get_growth_model(df, min_data = 5, target_accept = 0.8, tune = 1000, draws =
             y_obs = pm.Binomial(name='sampled', n=X_country_week_total, p=current_proportion, observed=Y)
             #perform the actual inference process.
             idata = pm.sample(draws=draws,tune=tune,progressbar=False,return_inferencedata=True,target_accept=target_accept)
-        growd[ann] = np.percentile(idata.get_values("growth"), [5,50,95])
+        growd[ann] = idata.posterior.growth.quantile(q=[0.05,.5,0.95]).values
     return growd
