@@ -175,7 +175,7 @@ def main():
         growd = get_growth_model(mdf, args.min_country_weeks, args.target_accept, args.tune, args.draws)
         pdf['Exponential Growth Coefficient CI'] = pdf.proposed_sublineage.apply(lambda x:growd.get(x,(np.nan,np.nan,np.nan))) 
         pdf['Median Growth'] = pdf['Exponential Growth Coefficient CI'].apply(lambda x:x[1])
-        pdf.sort_values("Median Growth",ascending=False)
+        pdf = pdf.sort_values("Median Growth",ascending=False)
     pdf = pdf.head(args.maximum)
     allowed = set()
     if args.samples != "None" and args.samples != None:
@@ -197,7 +197,7 @@ def main():
     pdf['Amino Acid Changes'] = pdf.apply(lambda row: ",".join(get_aa_set(row)),axis=1)
     targets = ['proposed_sublineage', 'parent', 'proposed_sublineage_size','earliest_child','latest_child','Regions','Nucleotide Changes','Amino Acid Changes','link','taxlink']
     if "Exponential Growth Coefficient CI" in pdf.columns:
-        targets.append('Exponential Growth Coefficient CI')
+        targets.insert(3,'Exponential Growth Coefficient CI')
     pdf = pdf[targets]
     pdf = pdf.rename({"proposed_sublineage":"Lineage Name", "parent":"Parent Lineage", "proposed_sublineage_size":"Size","earliest_child":"Earliest Appearance","latest_child":"Latest Appearance","final_date":"Last Checked","child_regions":"Circulating In","link":"View On Cov-Spectrum","taxlink":"View On Taxonium (Public Samples Only)"},axis=1)
     if args.output_report != None:
