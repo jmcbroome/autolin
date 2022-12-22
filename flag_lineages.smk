@@ -28,7 +28,7 @@ rule open_pull_request:
     output:
         "{tree}.pullreq.report.tsv"
     run:
-        commandstr = "python3 open_pull_request.py -r {config[request_params][designation_repo]} \
+        commandstr = "{config[python]} open_pull_request.py -r {config[request_params][designation_repo]} \
             -i {input[0]} -t {input[1]} -s {config[request_params][valid_samples]} -c {config[request_params][representative_number]} \
             -u {config[request_params][countries]} -m {config[request_params][maximum]} \
             -o {output} -a {config[request_params][active_since]} -d {config[request_params][samples_different]}"
@@ -171,7 +171,7 @@ rule filter_tree:
         "{tree}.pb.gz",
         "{tree}.nodestats.txt"
     output:
-        "{tree}.filtered.allan.pb"
+        temp("{tree}.filtered.allan.pb")
     shell:
         "{config[python]} filter_reversions.py {input[0]} {input[1]} {output}"
 
@@ -179,9 +179,9 @@ rule simplify_annotations:
     input:
         "{tree}.filtered.allan.pb"
     output:
-        "{tree}.filtered.pb"
+        temp("{tree}.filtered.pb")
     shell:
-        "python3 strip_annotations.py {input} {output}"
+        "{config[python]} strip_annotations.py {input} {output}"
 
 rule collect_node_statistics:
     input:
