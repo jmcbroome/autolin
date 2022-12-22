@@ -172,9 +172,9 @@ def main():
         print(f"{mdf.shape[0]} samples to be used among {pdf.proposed_sublineage.nunique()} lineage models.")
         mdf['date'] = mdf.date.apply(lambda x:get_date(x))
         growd = get_growth_model(mdf, args.min_country_weeks, args.target_accept, args.tune, args.draws)
-        pdf['Exponential Growth Coefficient CI'] = pdf.proposed_sublineage.apply(lambda x:growd.get(x,(np.nan,np.nan,np.nan))) 
-        pdf['Median Growth'] = pdf['Exponential Growth Coefficient CI'].apply(lambda x:x[1])
-        pdf = pdf.sort_values("Median Growth",ascending=False)
+        pdf['Exponential Growth Coefficient CI'] = pdf.proposed_sublineage.apply(lambda x:growd.get(x,(np.nan,np.nan))) 
+        pdf['Minimum Growth'] = pdf['Exponential Growth Coefficient CI'].apply(lambda x:x[0])
+        pdf = pdf.sort_values("Minimum Growth",ascending=False)
     pdf = pdf.head(args.maximum)
     allowed = set()
     if args.samples != "None" and args.samples != None:
