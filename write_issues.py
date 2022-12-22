@@ -1,3 +1,5 @@
+import sys
+sys.path.append("~/bin:")
 import argparse
 import pandas as pd
 import bte

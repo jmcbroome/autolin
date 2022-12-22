@@ -1,4 +1,5 @@
 import sys
+sys.path.append("~/bin:")
 import bte
 treename = sys.argv[1]
 t = bte.MATree(treename)
