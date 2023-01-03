@@ -36,8 +36,10 @@ def get_growth_model(df, min_data = 5, target_accept = 0.8, tune = 1000, draws =
             #cap the initial proportion value at 1 (100%) and log it for use. 
             #This value will be informed for week 0 of a set of values. It should vary across countries, but not by too much.
             log_initial_proportion = pm.Deterministic(name="log_initial_proportion",var=np.log(initial_proportion))
+            noise = pm.Normal(name='noise', sd=1)
             #estimate our expected proportion for this week, given our initial proportion and week. correct it back by exponentiation.
-            current_proportion = pm.Deterministic(name='base_proportion', var = np.e**(log_initial_proportion + growth * X_week))
+            #also, a noise parameter that can adjust the base proportion up or down. This is independent of week.
+            current_proportion = pm.Deterministic(name='base_proportion', var = np.e**(log_initial_proportion + growth * X_week + noise))
             #sampling process with our actual observed values.
             y_obs = pm.Binomial(name='sampled', n=X_country_week_total, p=current_proportion, observed=Y)
             #perform the actual inference process.
