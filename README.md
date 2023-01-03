@@ -89,15 +89,11 @@ Critically, this system allows for flexible alterations of sample or mutational 
 This does not invalidate current approaches or lineages defined under other systems, but instead augments those lineage systems
 by proposing new sublineages automatically. 
 
-## Current Issues
+## Statistics and Reporting
 
-### Tree Growth and Lineage Optimization
+Once lineages are identified, a number of statistics can be computed and reported through our pipeline. These include geographic presence, associated amino acid mutations, and circulation period. We programatically generate links to [cov-spectrum](https://cov-spectrum.org/explore/World/AllSamples/Past6M) and [taxonium](https://taxonium.org/) to allow the user to explore new SARS-CoV-2 lineages in greater detail. We also compute and report antibody escape as estimated by [the Bloom lab](https://jbloomlab.github.io/SARS2_RBD_Ab_escape_maps/escape-calc/).
 
-This method is designed with a fixed tree, and designates lineages which are optimal representations given an existing tree. In reality, however, new data comes in and the tree grows; a formerly optimal lineage may no longer be optimal after the tree grows or is optimized itself. At the moment we have no good solution to the issue of the accumulation of suboptimal lineages as the tree grows, and are interested in feedback or suggestions for the effective identification of when a lineage should be retracted and reassigned. 
-
-### Regularization of Lineage System Size
-
-We're also interested in a method to effectively penalize the addition of new lineages. This system is an automatic way to identify the best choice for a new lineage label, but is not effective at deciding whether a new lineage label should be added at all. We currently use a variety of thresholds for minimum lineage size and distinction from its parent lineage, but ideally, we would have a more informed regularization scheme.
+Notably, we optionally include a method which computes a Bayesian model of exponential growth combined with binomial sampling across countries for each new lineage. Our model produces a posterior distribution which approximates the true exponential growth coefficient of the lineage, shared across countries. The output table is then sorted by the 2.5% quantile of this posterior distribution, such that lineages which appear to be undergoing rapid exponential expansion appear at the top. 
 
 ## Feedback
 
