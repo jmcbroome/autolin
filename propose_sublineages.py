@@ -1,3 +1,5 @@
+import sys
+sys.path.append("~/bin:")
 import bte
 import sys
 import argparse

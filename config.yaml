@@ -2,6 +2,7 @@ escape_data: "./SARS2_RBD_Ab_escape_maps/processed_data/escape_data.csv"
 reference_genome: "./reference/NC_045512v2.fa"
 reference_gtf: "./reference/ncbiGenes.noORF1a.gtf"
 genbank: "./reference/hu1.gb"
+python: python #path or name for a specific Python interpreter to use.
 lineage_params:
   floor: 3 #minimum score value. Set higher to filter smaller and less valuable proposals. Set to 0 to report any and all sublineage proposals that pass other filters.
   annotation: B.1.1.529 #consider only this lineage and its descendents for sublineage proposal. Set to None to consider all lineages. 
@@ -22,7 +23,7 @@ reporting_params:
   samples_named: 15 #name up to this many samples within the text of the report, including the oldest and youngest samples. 
   local_only: True #set to True to print markdown issues to local files instead of attempting to post them to the repository issues board.
 request_params:
-  designation_repo: "./auto-pango-designation" #path to a local clone of https://github.com/cov-lineages/pango-designation or one of its forks. Required for pull request generation.
+  designation_repo: "../auto-pango-designation" #path to a local clone of https://github.com/cov-lineages/pango-designation or one of its forks. Required for pull request generation.
   local_only: True #update local files and print the text for a pull request body to a local markdown file instead of opening a branch and pull request on the targeted repository.
   auto_merge: False #immediately merge the generated pull request, if your api_key has permissions.
   representative_number: 1000 #add up to this many lineage representative samples per lineage to lineages.csv.

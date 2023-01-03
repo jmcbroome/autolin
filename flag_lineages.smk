@@ -28,7 +28,7 @@ rule open_pull_request:
     output:
         "{tree}.pullreq.report.tsv"
     run:
-        commandstr = "python3 open_pull_request.py -r {config[request_params][designation_repo]} \
+        commandstr = "{config[python]} open_pull_request.py -r {config[request_params][designation_repo]} \
             -i {input[0]} -t {input[1]} -s {config[request_params][valid_samples]} -c {config[request_params][representative_number]} \
             -u {config[request_params][countries]} -m {config[request_params][maximum]} \
             -o {output} -a {config[request_params][active_since]} -d {config[request_params][samples_different]}"
@@ -54,9 +54,9 @@ rule write_issues:
         "{tree}.issues.log"
     run:
         if eval(str(config["reporting_params"]["local_only"])):
-            shell("python3 write_issues.py --local -i {input[0]} -t {input[1]} -m {input[2]} -n {config[reporting_params][number]} -s {config[reporting_params][sort_by]} -p {config[reporting_params][prefix]} -c {config[reporting_params][samples_named]}")
+            shell("{config[python]} write_issues.py --local -i {input[0]} -t {input[1]} -m {input[2]} -n {config[reporting_params][number]} -s {config[reporting_params][sort_by]} -p {config[reporting_params][prefix]} -c {config[reporting_params][samples_named]}")
         else:
-            shell("python3 write_issues.py -i {input[0]} -t {input[1]} -m {input[2]} -n {config[reporting_params][number]} -s {config[reporting_params][sort_by]} -p {config[reporting_params][prefix]} -c {config[reporting_params][samples_named]}")
+            shell("{config[python]} write_issues.py -i {input[0]} -t {input[1]} -m {input[2]} -n {config[reporting_params][number]} -s {config[reporting_params][sort_by]} -p {config[reporting_params][prefix]} -c {config[reporting_params][samples_named]}")
 
 rule add_metadata:
     input:
@@ -65,7 +65,7 @@ rule add_metadata:
     output:
         "{tree}_metadata.viz.tsv"
     shell:
-        "python3 extract_annotations_viz.py {input[1]} {input[0]} {output}"
+        "{config[python]} extract_annotations_viz.py {input[1]} {input[0]} {output}"
 
 rule generate_report:
     input:
@@ -75,7 +75,7 @@ rule generate_report:
     output:
         "{tree}.proposed.report.tsv"
     shell:
-        "python3 generate_lineage_report.py -i {input[0]} -p {input[1]} -o {output} -f {config[reference_genome]} -g {config[reference_gtf]} -m {input[2]} -d {config[lineage_params][earliest_date]}"
+        "{config[python]} generate_lineage_report.py -i {input[0]} -p {input[1]} -o {output} -f {config[reference_genome]} -g {config[reference_gtf]} -m {input[2]} -d {config[lineage_params][earliest_date]}"
 
 rule propose:
     input:
@@ -110,8 +110,8 @@ rule propose:
                     command_args.append("--" + str(k))
             else:
                 command_args.append("--" + str(k) + " " + str(v))
-        print("FULL PROPOSAL COMMAND: ", "python3 propose_sublineages.py " + " ".join(command_args))
-        shell("python3 propose_sublineages.py " + " ".join(command_args) + "> " + log[0])
+        print("FULL PROPOSAL COMMAND: ", "{config[python]} propose_sublineages.py " + " ".join(command_args))
+        shell("{config[python]} propose_sublineages.py " + " ".join(command_args) + "> " + log[0])
 
 rule unzip_metadata:
     input:
@@ -171,17 +171,17 @@ rule filter_tree:
         "{tree}.pb.gz",
         "{tree}.nodestats.txt"
     output:
-        "{tree}.filtered.allan.pb"
+        temp("{tree}.filtered.allan.pb")
     shell:
-        "python3 filter_reversions.py {input[0]} {input[1]} {output}"
+        "{config[python]} filter_reversions.py {input[0]} {input[1]} {output}"
 
 rule simplify_annotations:
     input:
         "{tree}.filtered.allan.pb"
     output:
-        "{tree}.filtered.pb"
+        temp("{tree}.filtered.pb")
     shell:
-        "python3 strip_annotations.py {input} {output}"
+        "{config[python]} strip_annotations.py {input} {output}"
 
 rule collect_node_statistics:
     input:
@@ -193,4 +193,5 @@ rule collect_node_statistics:
         #at some point these should be resolved and UShER/matUtils can be added to the env.yml. 
         "usher.yml"
     shell:
-        "matUtils summary -i {input} -N {output}"
+        # "matUtils summary -i {input} -N {output}" #eventually.
+        "matUtils extract -i {input} --node-stats {output}"
