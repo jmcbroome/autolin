@@ -2,6 +2,7 @@ escape_data: "./SARS2_RBD_Ab_escape_maps/processed_data/escape_data.csv"
 reference_genome: "./reference/NC_045512v2.fa"
 reference_gtf: "./reference/ncbiGenes.noORF1a.gtf"
 genbank: "./reference/hu1.gb"
+python: python #path or name for a specific Python interpreter to use.
 lineage_params:
   floor: 3 #minimum score value. Set higher to filter smaller and less valuable proposals. Set to 0 to report any and all sublineage proposals that pass other filters.
   annotation: B.1.1.529 #consider only this lineage and its descendents for sublineage proposal. Set to None to consider all lineages. 
@@ -29,6 +30,11 @@ request_params:
   valid_samples: "None" #use samples from this file when expanding lineages.csv. Set to "None" to use any samples from the tree.
   countries: 1 #set a minimum number of countries a lineage must exist in to be included in the request.
   maximum: 20 #set a maximum number of lineages to include in a pull request. The top N are sorted by stratified growth.
-  growth: 0.005 #set a minimum mean stratified proportional weekly periodic growth. 0.01 means that, on average, the lineage grows to consist of 1% more of all the collected samples in each country its in each week.
   active_since: '2022-12-01' #only include lineage proposals that were actively sampled since the indicated date. Set to "None" to report all.
   samples_different: 5 #block sublineage proposals that are less than this many samples different from the parent lineage. Set this higher to block proposals that constitute the vast majority of the parent lineage. Set to 0 to disable this filter. 
+  growth_model: #parameters to adjust the behavior of the inferred growth model.
+    use_model: True #set to True to infer the model, applying the parameters below, and add to the results table.
+    draws: 1000 #set the drawing parameter for the sampler. https://www.pymc.io/projects/docs/en/stable/api/generated/pymc.sample.html
+    tune: 1500 #set the tuning parameter for the sampler.
+    target_accept: 0.9 #set the target acceptance parameter for the sampler.
+    min_country_weeks: 5 #require this many total data points, as combinations of countries and weeks. 

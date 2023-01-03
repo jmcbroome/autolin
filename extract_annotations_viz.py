@@ -1,5 +1,6 @@
-import bte
 import sys
+sys.path.append("~/bin:")
+import bte
 import pandas as pd
 t = bte.MATree(sys.argv[1])
 df = pd.read_csv(sys.argv[2],sep='\t')
