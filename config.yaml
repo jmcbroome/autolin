@@ -23,7 +23,7 @@ reporting_params:
   samples_named: 15 #name up to this many samples within the text of the report, including the oldest and youngest samples. 
   local_only: True #set to True to print markdown issues to local files instead of attempting to post them to the repository issues board.
 request_params:
-  designation_repo: "../auto-pango-designation" #path to a local clone of https://github.com/cov-lineages/pango-designation or one of its forks. Required for pull request generation.
+  designation_repo: "./auto-pango-designation" #path to a local clone of https://github.com/cov-lineages/pango-designation or one of its forks. Required for pull request generation.
   local_only: True #update local files and print the text for a pull request body to a local markdown file instead of opening a branch and pull request on the targeted repository.
   auto_merge: False #immediately merge the generated pull request, if your api_key has permissions.
   representative_number: 1000 #add up to this many lineage representative samples per lineage to lineages.csv.
@@ -33,8 +33,8 @@ request_params:
   active_since: '2022-12-01' #only include lineage proposals that were actively sampled since the indicated date. Set to "None" to report all.
   samples_different: 5 #block sublineage proposals that are less than this many samples different from the parent lineage. Set this higher to block proposals that constitute the vast majority of the parent lineage. Set to 0 to disable this filter. 
   growth_model: #parameters to adjust the behavior of the inferred growth model.
-    use_model: True #set to True to infer the model, applying the parameters below, and add to the results table. 
+    use_model: True #set to True to infer the model, applying the parameters below, and add to the results table.
     draws: 1000 #set the drawing parameter for the sampler. https://www.pymc.io/projects/docs/en/stable/api/generated/pymc.sample.html
     tune: 1500 #set the tuning parameter for the sampler.
-    target_accept: 0.8 #set the target acceptance parameter for the sampler.
+    target_accept: 0.9 #set the target acceptance parameter for the sampler.
     min_country_weeks: 5 #require this many total data points, as combinations of countries and weeks. 
