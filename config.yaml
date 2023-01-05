@@ -29,7 +29,7 @@ request_params:
   representative_number: 1000 #add up to this many lineage representative samples per lineage to lineages.csv.
   valid_samples: "None" #use samples from this file when expanding lineages.csv. Set to "None" to use any samples from the tree.
   countries: 1 #set a minimum number of countries a lineage must exist in to be included in the request.
-  maximum: 20 #set a maximum number of lineages to include in a pull request. The top N are sorted by stratified growth.
+  maximum: 25 #set a maximum number of lineages to include in a pull request. The top N are sorted by stratified growth.
   active_since: '2022-12-01' #only include lineage proposals that were actively sampled since the indicated date. Set to "None" to report all.
   samples_different: 5 #block sublineage proposals that are less than this many samples different from the parent lineage. Set this higher to block proposals that constitute the vast majority of the parent lineage. Set to 0 to disable this filter. 
   growth_model: #parameters to adjust the behavior of the inferred growth model.
@@ -37,4 +37,5 @@ request_params:
     draws: 1000 #set the drawing parameter for the sampler. https://www.pymc.io/projects/docs/en/stable/api/generated/pymc.sample.html
     tune: 1500 #set the tuning parameter for the sampler.
     target_accept: 0.9 #set the target acceptance parameter for the sampler.
-    min_country_weeks: 5 #require this many total data points, as combinations of countries and weeks. 
+    min_country_weeks: 2 #require this many total data points, as combinations of countries and weeks. 
+    max_proportion_considered: .1 #ignore datapoints at a higher proportion than this for being unlikely to behave exponentially or exhibiting other issues.

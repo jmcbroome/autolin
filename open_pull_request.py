@@ -30,6 +30,7 @@ def argparser():
     parser.add_argument("--tune", type=int,default=1500,help="Set the tuning parameter for the sampler.")
     parser.add_argument("--min_country_weeks",type=int,default=5,help="Require at least this many valid data points for inference.")
     parser.add_argument("--target_accept",type=float,default=.8,help="Set the target acceptance parameter for the sampler.")
+    parser.add_argument('--maxperc',type=float,default=.1,help="Ignore datapoints where the lineage proportion is greater than this proportion of samples. Use to ignore datapoints that are unlikely to follow an exponential curve, being close to a logistic inflection point.")
     args = parser.parse_args()
     return args
 
@@ -168,10 +169,10 @@ def main():
             print("ERROR: -e must be set with -M output.")
             sys.exit(1)
         mdf = pd.read_csv(args.metadata,sep='\t')
-        mdf = mdf[mdf.auto_annotation.isin(pdf.proposed_sublineage)]
-        print(f"{mdf.shape[0]} samples to be used among {pdf.proposed_sublineage.nunique()} lineage models.")
+        # mdf = mdf[mdf.auto_annotation.isin(pdf.proposed_sublineage)]
+        # print(f"{mdf.shape[0]} samples to be used among {pdf.proposed_sublineage.nunique()} lineage models.")
         mdf['date'] = mdf.date.apply(lambda x:get_date(x))
-        growd = get_growth_model(mdf, args.min_country_weeks, args.target_accept, args.tune, args.draws)
+        growd = get_growth_model(mdf, pdf.proposed_sublineage, args.min_country_weeks, args.target_accept, args.tune, args.draws, args.maxperc)
         pdf['Exponential Growth Coefficient CI'] = pdf.proposed_sublineage.apply(lambda x:growd.get(x,(np.nan,np.nan))) 
         pdf['Minimum Growth'] = pdf['Exponential Growth Coefficient CI'].apply(lambda x:x[0])
         pdf = pdf.sort_values("Minimum Growth",ascending=False)

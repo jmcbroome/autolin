@@ -42,7 +42,8 @@ rule open_pull_request:
                            --draws {config[request_params][growth_model][draws]} \
                            --tune {config[request_params][growth_model][tune]} \
                            --target_accept {config[request_params][growth_model][target_accept]} \
-                           --min_country_weeks {config[request_params][growth_model][min_country_weeks]}"
+                           --min_country_weeks {config[request_params][growth_model][min_country_weeks]} \
+                           --maxperc {config[request_params][growth_model][max_proportion_considered]}"
         shell(commandstr)
 
 rule write_issues:
@@ -193,5 +194,5 @@ rule collect_node_statistics:
         #at some point these should be resolved and UShER/matUtils can be added to the env.yml. 
         "usher.yml"
     shell:
-        # "matUtils summary -i {input} -N {output}" #eventually.
-        "matUtils extract -i {input} --node-stats {output}"
+        "matUtils summary -i {input} -N {output}" #eventually.
+        # "matUtils extract -i {input} --node-stats {output}"

@@ -2,13 +2,18 @@ import pandas as pd
 import numpy as np
 import pymc3 as pm
 
-def get_growth_model(df, min_data = 5, target_accept = 0.8, tune = 1000, draws = 1000):
+def get_growth_model(df, targets = [], min_data = 2, target_accept = 0.9, tune = 1500, draws = 1000, maxperc = .1):
     #prepare the dataset overall.
     rc = df.groupby(['country','auto_annotation',pd.Grouper(key='date', freq='1W')]).strain.count().reset_index()
     rc = rc.rename({"strain":"count"},axis=1).sort_values("date")
     cc = rc.groupby(["date","country"])['count'].sum().to_dict()
     rc['country_count'] = rc.apply(lambda row:cc.get((row.date,row.country)),axis=1)
     rc['country_perc'] = rc['count'] / rc.country_count
+    rc = rc[rc.country_perc <= maxperc]
+    #if a specific list of target lineages was specified, subsample to those. 
+    #it's okay to subsample now that I've collected my full country count.
+    if len(targets) > 0:
+        rc = rc[rc.auto_annotation.isin(targets)]
     #split the data by annotation.
     growd = {}
     for ann, osdf in rc.groupby("auto_annotation"):
@@ -37,7 +42,6 @@ def get_growth_model(df, min_data = 5, target_accept = 0.8, tune = 1000, draws =
             #This value will be informed for week 0 of a set of values. It should vary across countries, but not by too much.
             log_initial_proportion = pm.Deterministic(name="log_initial_proportion",var=np.log(initial_proportion))
             #estimate our expected proportion for this week, given our initial proportion and week. correct it back by exponentiation.
-            #also, a noise parameter that can adjust the base proportion up or down. This is independent of week.
             current_proportion = pm.Deterministic(name='base_proportion', var = np.e**(log_initial_proportion + growth * X_week))
             #sampling process with our actual observed values.
             y_obs = pm.Binomial(name='sampled', n=X_country_week_total, p=current_proportion, observed=Y)
