@@ -1,4 +1,4 @@
-# automate-lineages-prototype
+# autolin
 
 ## Overview
 
