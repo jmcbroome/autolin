@@ -1,4 +1,4 @@
-# autolin
+# Autolin: Automatically Identifying Pathogen Lineages
 
 ## Overview
 
