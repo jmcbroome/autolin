@@ -93,7 +93,7 @@ def write_note(row):
         outstr.append(", defined by " + ", ".join(aastr))
     if len(cstr) > 0:
         outstr.append(", found in " + cstr)
-    outstr.append(". Automatically inferred by https://github.com/jmcbroome/automate-lineages-prototype.")
+    outstr.append(". Automatically inferred by https://github.com/jmcbroome/autolin.")
     return ''.join(outstr)
 
 def get_reps(nid, t, target = 5000, allowed = set()):
@@ -107,7 +107,7 @@ def get_reps(nid, t, target = 5000, allowed = set()):
 
 def open_pr(branchname,trepo,automerge,reqname,pdf):
     g = Github(os.getenv("API_KEY"))
-    repo = g.get_user().get_repo("auto-pango-designation")
+    repo = g.get_user().get_repo("pango-designation")
     sb = repo.get_branch("master")
     if branchname not in [b.name for b in repo.get_branches()]:
         repo.create_git_ref(ref='refs/heads/' + branchname, sha=sb.commit.sha)
@@ -175,6 +175,7 @@ def main():
         growd = get_growth_model(mdf, pdf.proposed_sublineage, args.min_country_weeks, args.target_accept, args.tune, args.draws, args.maxperc)
         pdf['Exponential Growth Coefficient CI'] = pdf.proposed_sublineage.apply(lambda x:growd.get(x,(np.nan,np.nan))) 
         pdf['Minimum Growth'] = pdf['Exponential Growth Coefficient CI'].apply(lambda x:x[0])
+        pdf['Exponential Growth Coefficient CI'] = pdf['Exponential Growth Coefficient CI'].astype(str)
         pdf = pdf.sort_values("Minimum Growth",ascending=False)
     pdf = pdf.head(args.maximum)
     allowed = set()
