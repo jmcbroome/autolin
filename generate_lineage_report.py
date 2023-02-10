@@ -132,7 +132,7 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None,downloadco
             hapstring.append(",".join(n.mutations))
         return ">".join(hapstring[::-1])
     pdf['mutations'] = pdf.apply(get_separating_mutations,axis=1)
-    def get_representative_download(row, total = 10):
+    def get_representative_download(row):
         possible = t.get_leaves_ids(row.proposed_sublineage_nid)
         count = 0
         gbv = []
@@ -140,20 +140,20 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None,downloadco
             try:
                 gb = mdf.loc[l].genbank_accession
                 gbv.append(gb)
-                total += 1
+                count += 1
             except KeyError:
                 continue
-            if count >= total:
+            if count >= downloadcount:
                 break
-        if len(gbv) < total and len(gbv) > 0:
-            print(f"WARNING: Less than {total} samples in lineage {row.proposed_sublineage} have genbank accessions for download. Using {len(gbv)} samples instead")
+        if len(gbv) < downloadcount and len(gbv) > 0:
+            print(f"WARNING: Less than {downloadcount} samples in lineage {row.proposed_sublineage} have genbank accessions for download. Using {len(gbv)} samples instead")
             return "https://lapis.cov-spectrum.org/open/v1/sample/fasta?genbankAccession=" + ','.join(gbv)
         elif len(gbv) == 0:
             print(f"WARNING: No samples in lineage {row.proposed_sublineage} have associated accessions!")
             return np.nan
         else:
             return "https://lapis.cov-spectrum.org/open/v1/sample/fasta?genbankAccession=" + ','.join(gbv)
-    pdf['seqlink'] = pdf.apply(get_representative_download,downloadcount,axis=1)
+    pdf['seqlink'] = pdf.apply(get_representative_download,axis=1)
     def get_growth_score(row):
         try:
             td = (row.latest_child - row.earliest_child)
