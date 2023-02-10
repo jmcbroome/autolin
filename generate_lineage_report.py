@@ -17,7 +17,7 @@ def argparser():
     parser.add_argument("-f", "--reference", default=None, help="Path to a reference fasta file. Use with -g to annotate amino acid changes and immune escape in the expanded output.")
     parser.add_argument("-g", "--gtf", default=None, help="Path to a reference gtf file. Use with -f to annotate amino acid changes and immune escape in the expanded output.")
     parser.add_argument("-d", "--date", default=None, help="Ignore individual samples from before this date when computing reports. Format as %Y-%m-%d")
-    parser.add_argument("-r", "--downloadable_representative", default=10, help="Include up to this many samples in the representative sequence download link.")
+    parser.add_argument("-r", "--downloadable_representative", type=int, default=10, help="Include up to this many samples in the representative sequence download link.")
     args = parser.parse_args()
     return args
 
