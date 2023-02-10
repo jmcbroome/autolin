@@ -189,7 +189,12 @@ def main():
     pdf = update_lineage_files(pdf, t, args.repository, args.representative, allowed, tannotes)
     pdf['link'] = pdf.link.apply(lambda x:f"[View On Cov-Spectrum]({x})")
     pdf['taxlink'] = pdf.taxlink.apply(lambda x:f"[View On Taxonium (Public Samples Only)]({x})")
-    pdf['seqlink'] = pdf.seqlink.apply(lambda x:f"[Download Example Sequence FASTA (LAPIS)]({x})")
+    def get_lapis_link(seqlink):
+        if seqlink == np.nan:
+            return "No Data Available"
+        else:
+            return f"[Download Example Sequence FASTA (LAPIS)]({x})"
+    pdf['seqlink'] = pdf.seqlink.apply(get_lapis_link)
     pdf['Regions'] = pdf.apply(get_region_summary,axis=1)
     def get_mutation_set(row):
         childhap = t.get_haplotype(row.proposed_sublineage_nid)
