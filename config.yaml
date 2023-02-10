@@ -13,10 +13,11 @@ lineage_params:
   recursive: False #allow proposal of additional sublineages from newly proposed lineages. Can break links for recursively proposed lineage issue output.
   cutoff: 0.99 #stop adding new serial (exclusive) lineage annotations when this percentage of samples is labeled.
   earliest_date: '2022-10-15' #ignore all samples before this date. Set to 2019-12-01 to examine the entire pandemic.
+  downloadable_samples: 10 #include this many samples in the download link for getting representative genome sequences in FASTA format.
   weight_params:
     escape_weighting: 0 #Higher values means mutations associated with immune escape by the Bloom lab DMS are given higher weight. Set to 0 to disable escape weighting. 
     country_weighting: 10 #Higher values means samples from underrepresented countries count more. Set to 0 to disable country weighting. 
-reporting_params:
+issue_params:
   sort_by: "proposed_sublineage_score" #sort the results by this column.
   number: 20 #report the top X lineages in issues.
   prefix: "proposed_" #set a prefix for markdown and associated file output.
@@ -24,7 +25,7 @@ reporting_params:
   local_only: True #set to True to print markdown issues to local files instead of attempting to post them to the repository issues board.
 request_params:
   designation_repo: "../auto-pango-designation" #path to a local clone of https://github.com/cov-lineages/pango-designation or one of its forks. Required for pull request generation.
-  local_only: False #update local files and print the text for a pull request body to a local markdown file instead of opening a branch and pull request on the targeted repository.
+  local_only: True #update local files and print the text for a pull request body to a local markdown file instead of opening a branch and pull request on the targeted repository.
   auto_merge: False #immediately merge the generated pull request, if your api_key has permissions.
   representative_number: 1000 #add up to this many lineage representative samples per lineage to lineages.csv.
   valid_samples: "None" #use samples from this file when expanding lineages.csv. Set to "None" to use any samples from the tree.

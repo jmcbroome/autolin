@@ -107,7 +107,7 @@ def get_reps(nid, t, target = 5000, allowed = set()):
 
 def open_pr(branchname,trepo,automerge,reqname,pdf):
     g = Github(os.getenv("API_KEY"))
-    repo = g.get_user().get_repo("pango-designation")
+    repo = g.get_user().get_repo("auto-pango-designation")
     sb = repo.get_branch("master")
     if branchname not in [b.name for b in repo.get_branches()]:
         repo.create_git_ref(ref='refs/heads/' + branchname, sha=sb.commit.sha)
@@ -189,6 +189,7 @@ def main():
     pdf = update_lineage_files(pdf, t, args.repository, args.representative, allowed, tannotes)
     pdf['link'] = pdf.link.apply(lambda x:f"[View On Cov-Spectrum]({x})")
     pdf['taxlink'] = pdf.taxlink.apply(lambda x:f"[View On Taxonium (Public Samples Only)]({x})")
+    pdf['seqlink'] = pdf.seqlink.apply(lambda x:f"[Download Example Sequence FASTA (LAPIS)]({x})")
     pdf['Regions'] = pdf.apply(get_region_summary,axis=1)
     def get_mutation_set(row):
         childhap = t.get_haplotype(row.proposed_sublineage_nid)
@@ -196,11 +197,11 @@ def main():
         return ",".join(list(childhap.difference(parenthap)))
     pdf['Nucleotide Changes'] = pdf.apply(get_mutation_set,axis=1)
     pdf['Amino Acid Changes'] = pdf.apply(lambda row: ",".join(get_aa_set(row)),axis=1)
-    targets = ['proposed_sublineage', 'parent', 'proposed_sublineage_size','earliest_child','latest_child','Regions','Nucleotide Changes','Amino Acid Changes','link','taxlink']
+    targets = ['proposed_sublineage', 'parent', 'proposed_sublineage_size','earliest_child','latest_child','Regions','Nucleotide Changes','Amino Acid Changes','link','taxlink','seqlink']
     if "Exponential Growth Coefficient CI" in pdf.columns:
         targets.insert(3,'Exponential Growth Coefficient CI')
     pdf = pdf[targets]
-    pdf = pdf.rename({"proposed_sublineage":"Lineage Name", "parent":"Parent Lineage", "proposed_sublineage_size":"Size","earliest_child":"Earliest Appearance","latest_child":"Latest Appearance","final_date":"Last Checked","child_regions":"Circulating In","link":"View On Cov-Spectrum","taxlink":"View On Taxonium (Public Samples Only)"},axis=1)
+    pdf = pdf.rename({"proposed_sublineage":"Lineage Name", "parent":"Parent Lineage", "proposed_sublineage_size":"Size","earliest_child":"Earliest Appearance","latest_child":"Latest Appearance","final_date":"Last Checked","child_regions":"Circulating In","link":"View On Cov-Spectrum","taxlink":"View On Taxonium (Public Samples Only)",'seqlink':"Download Example Sequence FASTA"},axis=1)
     if args.output_report != None:
         pdf.to_csv(args.output_report,index=False,sep='\t')
     if not args.local:

@@ -17,6 +17,7 @@ def argparser():
     parser.add_argument("-f", "--reference", default=None, help="Path to a reference fasta file. Use with -g to annotate amino acid changes and immune escape in the expanded output.")
     parser.add_argument("-g", "--gtf", default=None, help="Path to a reference gtf file. Use with -f to annotate amino acid changes and immune escape in the expanded output.")
     parser.add_argument("-d", "--date", default=None, help="Ignore individual samples from before this date when computing reports. Format as %Y-%m-%d")
+    parser.add_argument("-r", "--downloadable_representative", default=10, help="Include up to this many samples in the representative sequence download link.")
     args = parser.parse_args()
     return args
 
@@ -49,7 +50,7 @@ def write_taxonium_url(parentlin, mutations):
     queries = parse.urlencode([("srch",'[' + "".join(str(searchbase).split()).replace("'",'"') + ']'),("enabled",'{"aa1":"true"}'),("zoomToSearch",0)])
     return urlbase + queries
 
-def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None):
+def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None,downloadcount=10):
     print("Filling out metadata with terminal lineages.")
     def get_latest_lineage(s):
         for anc in t.rsearch(s):
@@ -131,6 +132,28 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None):
             hapstring.append(",".join(n.mutations))
         return ">".join(hapstring[::-1])
     pdf['mutations'] = pdf.apply(get_separating_mutations,axis=1)
+    def get_representative_download(row, total = 10):
+        possible = t.get_leaves_ids(row.proposed_sublineage_nid)
+        count = 0
+        gbv = []
+        for l in possible:
+            try:
+                gb = mdf.loc[l].genbank_accession
+                gbv.append(gb)
+                total += 1
+            except KeyError:
+                continue
+            if count >= total:
+                break
+        if len(gbv) < total and len(gbv) > 0:
+            print(f"WARNING: Less than {total} samples in lineage {row.proposed_sublineage} have genbank accessions for download. Using {len(gbv)} samples instead")
+            return "https://lapis.cov-spectrum.org/open/v1/sample/fasta?genbankAccession=" + ','.join(gbv)
+        elif len(gbv) == 0:
+            print(f"WARNING: No samples in lineage {row.proposed_sublineage} have associated accessions!")
+            return np.nan
+        else:
+            return "https://lapis.cov-spectrum.org/open/v1/sample/fasta?genbankAccession=" + ','.join(gbv)
+    pdf['seqlink'] = pdf.apply(get_representative_download,downloadcount,axis=1)
     def get_growth_score(row):
         try:
             td = (row.latest_child - row.earliest_child)
@@ -193,7 +216,7 @@ def main():
     mdf = pd.read_csv(args.metadata,sep='\t')
     t = bte.MATree(args.input)
     pdf = pd.read_csv(args.proposed,sep='\t')
-    odf = fill_output_table(t,pdf,mdf,args.reference,args.gtf,args.date)
+    odf = fill_output_table(t,pdf,mdf,args.reference,args.gtf,args.date,args.downloadable_representative)
     odf.to_csv(args.output,sep='\t',index=False)
 
 if __name__ == "__main__":

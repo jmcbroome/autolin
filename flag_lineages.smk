@@ -54,10 +54,10 @@ rule write_issues:
     output:
         "{tree}.issues.log"
     run:
-        if eval(str(config["reporting_params"]["local_only"])):
-            shell("{config[python]} write_issues.py --local -i {input[0]} -t {input[1]} -m {input[2]} -n {config[reporting_params][number]} -s {config[reporting_params][sort_by]} -p {config[reporting_params][prefix]} -c {config[reporting_params][samples_named]}")
+        if eval(str(config["issue_params"]["local_only"])):
+            shell("{config[python]} write_issues.py --local -i {input[0]} -t {input[1]} -m {input[2]} -n {config[issue_params][number]} -s {config[issue_params][sort_by]} -p {config[issue_params][prefix]} -c {config[issue_params][samples_named]}")
         else:
-            shell("{config[python]} write_issues.py -i {input[0]} -t {input[1]} -m {input[2]} -n {config[reporting_params][number]} -s {config[reporting_params][sort_by]} -p {config[reporting_params][prefix]} -c {config[reporting_params][samples_named]}")
+            shell("{config[python]} write_issues.py -i {input[0]} -t {input[1]} -m {input[2]} -n {config[issue_params][number]} -s {config[issue_params][sort_by]} -p {config[issue_params][prefix]} -c {config[issue_params][samples_named]}")
 
 rule add_metadata:
     input:
@@ -76,7 +76,7 @@ rule generate_report:
     output:
         "{tree}.proposed.report.tsv"
     shell:
-        "{config[python]} generate_lineage_report.py -i {input[0]} -p {input[1]} -o {output} -f {config[reference_genome]} -g {config[reference_gtf]} -m {input[2]} -d {config[lineage_params][earliest_date]}"
+        "{config[python]} generate_lineage_report.py -i {input[0]} -p {input[1]} -o {output} -f {config[reference_genome]} -g {config[reference_gtf]} -m {input[2]} -d {config[lineage_params][earliest_date]} -r {config[lineage_params][downloadable_samples]}"
 
 rule propose:
     input:
@@ -194,5 +194,4 @@ rule collect_node_statistics:
         #at some point these should be resolved and UShER/matUtils can be added to the env.yml. 
         "usher.yml"
     shell:
-        "matUtils summary -i {input} -N {output}" #eventually.
-        # "matUtils extract -i {input} --node-stats {output}"
+        "matUtils summary -i {input} -N {output}"
