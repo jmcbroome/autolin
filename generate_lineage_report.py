@@ -139,8 +139,9 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None,downloadco
         for l in possible:
             try:
                 gb = mdf.loc[l].genbank_accession
-                gbv.append(gb)
-                count += 1
+                if type(gb) == str:
+                    gbv.append(gb)
+                    count += 1
             except KeyError:
                 continue
             if count >= downloadcount:
