@@ -12,7 +12,7 @@ lineage_params:
   distinction: 1 #minimum mutation weight. Default weighting scheme is 1 per mutation (more for mutations associated with immune escape if escape_weighting is used).
   recursive: False #allow proposal of additional sublineages from newly proposed lineages. Can break links for recursively proposed lineage issue output.
   cutoff: 0.99 #stop adding new serial (exclusive) lineage annotations when this percentage of samples is labeled.
-  earliest_date: '2022-10-15' #ignore all samples before this date. Set to 2019-12-01 to examine the entire pandemic.
+  earliest_date: '2022-12-10' #ignore all samples before this date. Set to 2019-12-01 to examine the entire pandemic.
   downloadable_samples: 10 #include this many samples in the download link for getting representative genome sequences in FASTA format.
   weight_params:
     escape_weighting: 0 #Higher values means mutations associated with immune escape by the Bloom lab DMS are given higher weight. Set to 0 to disable escape weighting. 
@@ -25,13 +25,13 @@ issue_params:
   local_only: True #set to True to print markdown issues to local files instead of attempting to post them to the repository issues board.
 request_params:
   designation_repo: "../auto-pango-designation" #path to a local clone of https://github.com/cov-lineages/pango-designation or one of its forks. Required for pull request generation.
-  local_only: True #update local files and print the text for a pull request body to a local markdown file instead of opening a branch and pull request on the targeted repository.
+  local_only: False #update local files and print the text for a pull request body to a local markdown file instead of opening a branch and pull request on the targeted repository.
   auto_merge: False #immediately merge the generated pull request, if your api_key has permissions.
   representative_number: 1000 #add up to this many lineage representative samples per lineage to lineages.csv.
   valid_samples: "None" #use samples from this file when expanding lineages.csv. Set to "None" to use any samples from the tree.
   countries: 1 #set a minimum number of countries a lineage must exist in to be included in the request.
   maximum: 25 #set a maximum number of lineages to include in a pull request. The top N are sorted by stratified growth.
-  active_since: '2022-12-01' #only include lineage proposals that were actively sampled since the indicated date. Set to "None" to report all.
+  active_since: '2022-2-01' #only include lineage proposals that were actively sampled since the indicated date. Set to "None" to report all.
   samples_different: 5 #block sublineage proposals that are less than this many samples different from the parent lineage. Set this higher to block proposals that constitute the vast majority of the parent lineage. Set to 0 to disable this filter. 
   growth_model: #parameters to adjust the behavior of the inferred growth model.
     use_model: True #set to True to infer the model, applying the parameters below, and add to the results table.
