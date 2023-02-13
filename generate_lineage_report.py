@@ -165,7 +165,6 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None,downloadco
         #     return np.nan
         # else:
         #     return "https://lapis.cov-spectrum.org/open/v1/sample/fasta?genbankAccession=" + ','.join(gbv)
-    pdf['seqlink'] = pdf.apply(get_representative_download,axis=1)
     def get_growth_score(row):
         try:
             td = (row.latest_child - row.earliest_child)
@@ -198,7 +197,7 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None,downloadco
                     parent_aas = update_aa_haplotype(parent_aas, alla)
                 #all mutations along the path contribute to the child lineage haplotype.
                 child_aas = update_aa_haplotype(child_aas, alla)
-            hstr = ",".join(child_aas)
+            hstr = ",".join([aa.aa_string() for aa in child_aas])
             child_escape = calculator.binding_retained(child_aas)
             parent_escape = calculator.binding_retained(parent_aas)
             net_escape_gain = parent_escape - child_escape
@@ -206,13 +205,16 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None,downloadco
             cev.append(child_escape)
             pev.append(parent_escape)
             nev.append(net_escape_gain)
-        pdf['aa_path'] = hstrs
+        pdf['aav'] = hstrs
+        pdf['sublineage_escape'] = cev
+        pdf['parent_escape'] = pev
+        pdf['net_escape_gain'] = nev   
         def get_representative_download(row):
             #query on parent lineage + mutations instead
             #and use requests to see how many are available.
-            check_query = f"https://lapis.cov-spectrum.org/open/v1/sample/aggregated?pangoLineage={row.parent}&aaMutations={','.join(list(aav))}"
+            check_query = f"https://lapis.cov-spectrum.org/open/v1/sample/aggregated?pangoLineage={row.parent}&aaMutations={','.join(list(row.aav))}"
             response = requests.get(check_query)
-            if response.status_code != 200:
+            if response.status_code != requests.codes.ok:
                 print(f"WARNING: Lapis Error Status Code {response.status_code}")
                 return np.nan
             elif response.json()['data'][0]['count'] == 0:
@@ -220,10 +222,8 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None,downloadco
                 return np.nan
             else:
                 #return the fasta download version of this link.
-                return f"https://lapis.cov-spectrum.org/open/v1/sample/fasta?pangoLineage={row.parent}&aaMutations={','.join(list(aav))}"
-        pdf['sublineage_escape'] = cev
-        pdf['parent_escape'] = pev
-        pdf['net_escape_gain'] = nev   
+                return f"https://lapis.cov-spectrum.org/open/v1/sample/fasta?pangoLineage={row.parent}&aaMutations={','.join(list(row.aav))}"
+        pdf['seqlink'] = pdf.apply(get_representative_download,axis=1)
         def changes_to_list(aacstr):
             changes = []
             for n in aacstr.split(">"):
