@@ -189,7 +189,6 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None,downloadco
                 #further filter aa changes in orf1a/b so that they're properly processed for taxonium viewing and not counted redundantly
                 #in our code, ORF1a changes are annotated as both ORF1a and ORF1ab, ORF1b are annotated as ORF1ab only.
                 alla = translation.get(n.id,[])
-                spikes = [a.aa_index for a in alla if a.gene == 'S' and a.aa_index in calculator.sites and a.original_aa != a.alternative_aa]
                 if n.id == row.parent_nid:
                     past_parent = True
                 if past_parent:
@@ -198,8 +197,8 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None,downloadco
                 #all mutations along the path contribute to the child lineage haplotype.
                 child_aas = update_aa_haplotype(child_aas, alla)
             hstr = ",".join([aa.aa_string() for aa in child_aas])
-            child_escape = calculator.binding_retained(child_aas)
-            parent_escape = calculator.binding_retained(parent_aas)
+            child_escape = calculator.binding_retained([a.index for a in child_aas if a.gene == 'S' and a.aa_index in calculator.sites and a.original_aa != a.alternative_aa])
+            parent_escape = calculator.binding_retained([a.index for a in parent_aas if a.gene == 'S' and a.aa_index in calculator.sites and a.original_aa != a.alternative_aa])
             net_escape_gain = parent_escape - child_escape
             hstrs.append(hstr)
             cev.append(child_escape)
