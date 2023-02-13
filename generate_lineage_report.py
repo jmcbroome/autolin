@@ -144,27 +144,6 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None,downloadco
             hapstring.append(",".join(n.mutations))
         return ">".join(hapstring[::-1])
     pdf['mutations'] = pdf.apply(get_separating_mutations,axis=1)
-        # possible = t.get_leaves_ids(row.proposed_sublineage_nid)
-        # count = 0
-        # gbv = []
-        # for l in possible:
-        #     try:
-        #         gb = mdf.loc[l].genbank_accession
-        #         if type(gb) == str:
-        #             gbv.append(gb)
-        #             count += 1
-        #     except KeyError:
-        #         continue
-        #     if count >= downloadcount:
-        #         break
-        # if len(gbv) < downloadcount and len(gbv) > 0:
-        #     print(f"WARNING: Less than {downloadcount} samples in lineage {row.proposed_sublineage} have genbank accessions for download. Using {len(gbv)} samples instead")
-        #     return "https://lapis.cov-spectrum.org/open/v1/sample/fasta?genbankAccession=" + ','.join(gbv)
-        # elif len(gbv) == 0:
-        #     print(f"WARNING: No samples in lineage {row.proposed_sublineage} have associated accessions!")
-        #     return np.nan
-        # else:
-        #     return "https://lapis.cov-spectrum.org/open/v1/sample/fasta?genbankAccession=" + ','.join(gbv)
     def get_growth_score(row):
         try:
             td = (row.latest_child - row.earliest_child)
@@ -184,6 +163,7 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None,downloadco
         for i, row in pdf.iterrows():
             child_aas = []
             parent_aas = []
+            all_aas = []
             past_parent = False
             for n in t.rsearch(row.proposed_sublineage_nid,True):
                 #further filter aa changes in orf1a/b so that they're properly processed for taxonium viewing and not counted redundantly
@@ -194,11 +174,13 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None,downloadco
                 if past_parent:
                     #only mutations at or behind the parent node contribute to its haplotype.
                     parent_aas = update_aa_haplotype(parent_aas, alla)
-                #all mutations along the path contribute to the child lineage haplotype.
-                child_aas = update_aa_haplotype(child_aas, alla)
+                else:
+                    child_aas = update_aa_haplotype(child_aas, alla)
             hstr = ",".join([aa.aa_string() for aa in child_aas])
-            child_escape = calculator.binding_retained([a.aa_index for a in child_aas if a.gene == 'S' and a.aa_index in calculator.sites and a.original_aa != a.alternative_aa])
-            parent_escape = calculator.binding_retained([a.aa_index for a in parent_aas if a.gene == 'S' and a.aa_index in calculator.sites and a.original_aa != a.alternative_aa])
+            cspikes = [a.aa_index for a in all_aas if a.gene == 'S' and a.aa_index in calculator.sites and a.original_aa != a.alternative_aa]
+            pspikes = [a.aa_index for a in parent_aas if a.gene == 'S' and a.aa_index in calculator.sites and a.original_aa != a.alternative_aa]
+            child_escape = calculator.binding_retained(cspikes)
+            parent_escape = calculator.binding_retained(pspikes)
             net_escape_gain = parent_escape - child_escape
             hstrs.append(hstr)
             cev.append(child_escape)
@@ -211,10 +193,18 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None,downloadco
         def get_representative_download(row):
             #query on parent lineage + mutations instead
             #and use requests to see how many are available.
-            check_query = f"https://lapis.cov-spectrum.org/open/v1/sample/aggregated?pangoLineage={row.parent}&aaMutations={','.join(list(row.aav))}"
+            mhap = []
+            locs = set()
+            for mset in reversed(row.mutations.split(">")):
+                for m in mset:
+                    location = int(mset)
+                    if location not in locs:
+                        locs.add(location)
+                        mhap.append(m[1:])
+            check_query = f"https://lapis.cov-spectrum.org/open/v1/sample/aggregated?pangoLineage={row.parent}&nucMutations={','.join(mhap)}"
             response = requests.get(check_query)
             if response.status_code != requests.codes.ok:
-                print(f"WARNING: Lapis Error Status Code {response.status_code}")
+                print(f"WARNING: Lapis Error Status Code {response.status_code} for link {check_query}")
                 return np.nan
             elif response.json()['data'][0]['count'] == 0:
                 print(f"No samples available for lineage proposal {row.proposed_sublineage}")
