@@ -1,6 +1,5 @@
 import sys
 from pathlib import Path
-sys.path.insert(0, Path(workflow.basedir).parent.as_posix())
 import pandas as pd
 import datetime as dt
 import numpy as np
@@ -91,7 +90,7 @@ rule propose:
     run:
         d = {"input":input[0]}
         for k,v in config['lineage_params'].items():
-            if k == 'weight_params' or k == 'earliest_date':
+            if k == 'weight_params' or k == 'earliest_date' or k == 'downloadable_samples':
                 continue #these are used elsewhere.
             if v in ['None','True','False']:
                 d[k] = eval(v)
