@@ -7,6 +7,7 @@ import numpy as np
 import datetime as dt
 import argparse
 from urllib import parse
+import requests
 
 def argparser():
     parser = argparse.ArgumentParser(description="Compute detailed lineage reports for all existing lineages in the tree.")
@@ -49,6 +50,17 @@ def write_taxonium_url(parentlin, mutations):
     searchbase['boolean_method'] = 'and'
     queries = parse.urlencode([("srch",'[' + "".join(str(searchbase).split()).replace("'",'"') + ']'),("enabled",'{"aa1":"true"}'),("zoomToSearch",0)])
     return urlbase + queries
+
+def update_aa_haplotype(caas, naas):
+    #add all amino acid mutations in naas (new amino acids) to caas (current amino acids) if they don't overlap with an existing protein index.
+    cindexes = set([(aa.gene, aa.aa_index) for aa in caas])
+    for naa in naas:
+        #ignore synonymous mutations
+        if naa.original_aa != naa.alternative_aa:
+            #we proceed out to in, so sites are "locked in" once a change is seen.
+            if (naa.gene, naa.aa_index) not in cindexes:
+                caas.append(naa)
+    return caas
 
 def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None,downloadcount=10):
     print("Filling out metadata with terminal lineages.")
@@ -132,28 +144,27 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None,downloadco
             hapstring.append(",".join(n.mutations))
         return ">".join(hapstring[::-1])
     pdf['mutations'] = pdf.apply(get_separating_mutations,axis=1)
-    def get_representative_download(row):
-        possible = t.get_leaves_ids(row.proposed_sublineage_nid)
-        count = 0
-        gbv = []
-        for l in possible:
-            try:
-                gb = mdf.loc[l].genbank_accession
-                if type(gb) == str:
-                    gbv.append(gb)
-                    count += 1
-            except KeyError:
-                continue
-            if count >= downloadcount:
-                break
-        if len(gbv) < downloadcount and len(gbv) > 0:
-            print(f"WARNING: Less than {downloadcount} samples in lineage {row.proposed_sublineage} have genbank accessions for download. Using {len(gbv)} samples instead")
-            return "https://lapis.cov-spectrum.org/open/v1/sample/fasta?genbankAccession=" + ','.join(gbv)
-        elif len(gbv) == 0:
-            print(f"WARNING: No samples in lineage {row.proposed_sublineage} have associated accessions!")
-            return np.nan
-        else:
-            return "https://lapis.cov-spectrum.org/open/v1/sample/fasta?genbankAccession=" + ','.join(gbv)
+        # possible = t.get_leaves_ids(row.proposed_sublineage_nid)
+        # count = 0
+        # gbv = []
+        # for l in possible:
+        #     try:
+        #         gb = mdf.loc[l].genbank_accession
+        #         if type(gb) == str:
+        #             gbv.append(gb)
+        #             count += 1
+        #     except KeyError:
+        #         continue
+        #     if count >= downloadcount:
+        #         break
+        # if len(gbv) < downloadcount and len(gbv) > 0:
+        #     print(f"WARNING: Less than {downloadcount} samples in lineage {row.proposed_sublineage} have genbank accessions for download. Using {len(gbv)} samples instead")
+        #     return "https://lapis.cov-spectrum.org/open/v1/sample/fasta?genbankAccession=" + ','.join(gbv)
+        # elif len(gbv) == 0:
+        #     print(f"WARNING: No samples in lineage {row.proposed_sublineage} have associated accessions!")
+        #     return np.nan
+        # else:
+        #     return "https://lapis.cov-spectrum.org/open/v1/sample/fasta?genbankAccession=" + ','.join(gbv)
     pdf['seqlink'] = pdf.apply(get_representative_download,axis=1)
     def get_growth_score(row):
         try:
@@ -172,34 +183,44 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None,downloadco
         pev = []
         nev = []
         for i, row in pdf.iterrows():
-            hapstring = []
-            child_changes = []
-            parent_changes = []
+            child_aas = []
+            parent_aas = []
             past_parent = False
             for n in t.rsearch(row.proposed_sublineage_nid,True):
                 #further filter aa changes in orf1a/b so that they're properly processed for taxonium viewing and not counted redundantly
                 #in our code, ORF1a changes are annotated as both ORF1a and ORF1ab, ORF1b are annotated as ORF1ab only.
-                aas = []
-                for a in translation.get(n.id,[]):
-                    if a.original_aa == a.alternative_aa:
-                        continue #ignore synonymous mutations
-                    aas.append(a)
+                alla = translation.get(n.id,[])
+                spikes = [a.aa_index for a in alla if a.gene == 'S' and a.aa_index in calculator.sites and a.original_aa != a.alternative_aa]
                 if n.id == row.parent_nid:
                     past_parent = True
                 if past_parent:
-                    parent_changes.extend([a.aa_index for a in aas if a.gene == 'S' and a.aa_index in calculator.sites])
-                else:
-                    child_changes.extend([a.aa_index for a in aas if a.gene == 'S' and a.aa_index in calculator.sites])
-                    hapstring.append(",".join([aav.gene+":"+aav.aa for aav in aas]))
-            hstr = ">".join(hapstring[::-1]) 
-            child_escape = calculator.binding_retained(child_changes + parent_changes)
-            parent_escape = calculator.binding_retained(parent_changes)
+                    #only mutations at or behind the parent node contribute to its haplotype.
+                    parent_aas = update_aa_haplotype(parent_aas, alla)
+                #all mutations along the path contribute to the child lineage haplotype.
+                child_aas = update_aa_haplotype(child_aas, alla)
+            hstr = ",".join(child_aas)
+            child_escape = calculator.binding_retained(child_aas)
+            parent_escape = calculator.binding_retained(parent_aas)
             net_escape_gain = parent_escape - child_escape
             hstrs.append(hstr)
             cev.append(child_escape)
             pev.append(parent_escape)
             nev.append(net_escape_gain)
         pdf['aa_path'] = hstrs
+        def get_representative_download(row):
+            #query on parent lineage + mutations instead
+            #and use requests to see how many are available.
+            check_query = f"https://lapis.cov-spectrum.org/open/v1/sample/aggregated?pangoLineage={row.parent}&aaMutations={','.join(list(aav))}"
+            response = requests.get(check_query)
+            if response.status_code != 200:
+                print(f"WARNING: Lapis Error Status Code {response.status_code}")
+                return np.nan
+            elif response.json()['data'][0]['count'] == 0:
+                print(f"No samples available for lineage proposal {row.proposed_sublineage}")
+                return np.nan
+            else:
+                #return the fasta download version of this link.
+                return f"https://lapis.cov-spectrum.org/open/v1/sample/fasta?pangoLineage={row.parent}&aaMutations={','.join(list(aav))}"
         pdf['sublineage_escape'] = cev
         pdf['parent_escape'] = pev
         pdf['net_escape_gain'] = nev   
