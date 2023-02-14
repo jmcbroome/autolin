@@ -73,7 +73,7 @@ def get_region_summary(row):
 def write_note(row):
     unalias = global_aliasor.uncompress(row.proposed_sublineage[5:])
     cstr = get_region_summary(row)
-    aastr = row.aav
+    aastr = row.aav.split(",")
     outstr = ['auto.' + compress_lineage(unalias) + "\t", "Alias of auto." + unalias]
     if len(aastr) > 0:
         outstr.append(", defined by " + ", ".join(aastr))
