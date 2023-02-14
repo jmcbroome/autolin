@@ -189,19 +189,22 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None,downloadco
         pdf['aav'] = hstrs
         pdf['sublineage_escape'] = cev
         pdf['parent_escape'] = pev
-        pdf['net_escape_gain'] = nev   
-        def get_representative_download(row):
-            #query on parent lineage + mutations instead
-            #and use requests to see how many are available.
+        pdf['net_escape_gain'] = nev
+        def get_mset(mutations):
             mhap = []
             locs = set()
-            for mset in reversed(row.mutations.split(">")):
+            for mset in reversed(mutations.split(">")):
                 for m in mset.split(','):
                     location = int(m[1:-1])
                     if location not in locs:
                         locs.add(location)
                         mhap.append(m[1:])
-            check_query = f"https://lapis.cov-spectrum.org/open/v1/sample/aggregated?pangoLineage={row.parent}&nucMutations={','.join(mhap)}"
+            return ','.join(mhap)
+        pdf['mset'] = pdf.mutations.apply(get_mset)
+        def get_representative_download(row):
+            #query on parent lineage + mutations instead
+            #and use requests to see how many are available.
+            check_query = f"https://lapis.cov-spectrum.org/open/v1/sample/aggregated?pangoLineage={row.parent}&nucMutations={row.mset}"
             response = requests.get(check_query)
             if response.status_code != requests.codes.ok:
                 print(f"WARNING: Lapis Error Status Code {response.status_code} for link {check_query}")
@@ -211,8 +214,21 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None,downloadco
                 return np.nan
             else:
                 #return the fasta download version of this link.
-                return f"https://lapis.cov-spectrum.org/open/v1/sample/fasta?pangoLineage={row.parent}&nucMutations={','.join(mhap)}"
+                return f"https://lapis.cov-spectrum.org/open/v1/sample/fasta?pangoLineage={row.parent}&nucMutations={row.mset}"
         pdf['seqlink'] = pdf.apply(get_representative_download,axis=1)
+        def get_epi_isls(row):
+            query = f"https://lapis.cov-spectrum.org/open/v1/sample/details?pangoLineage={row.parent}&nucMutations={row.mset}"
+            response = requests.get(query)
+            if response.status_code != requests.codes.ok:
+                print(f"WARNING: Lapis Error Status Code {response.status_code} for link {check_query}")
+                return np.nan
+            epi_isl_list = []
+            for d in response.json()['data']:
+                v = d.get("gisaidEpiIsl",None)
+                if v != None:
+                    epi_isl_list.append(v)
+            return ",".join(epi_isl_list)
+        pdf['epi_isls'] = pdf.apply(get_epi_isls,axis=1)
         def changes_to_list(aacstr):
             changes = []
             for n in aacstr.split(">"):

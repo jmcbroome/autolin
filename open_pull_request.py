@@ -70,24 +70,10 @@ def get_region_summary(row):
         cstr = ", ".join(regions_to_report[:3]) + f", and {len(regions_to_report)-3} additional countries."
     return cstr
 
-def get_aa_set(row):
-    aastr = []
-    for aav in row.aa_path.split(">"):
-        if len(aav) > 0:
-            for aa in aav.split(","):
-                al = aa.split(":")[1]
-                oal = al[-1] + al[1:-1] + al[0]
-                opp = aa.split(":")[0] + oal
-                if opp not in aastr:
-                    aastr.append(aa)
-                else:
-                    aastr.remove(opp)
-    return aastr
-
 def write_note(row):
     unalias = global_aliasor.uncompress(row.proposed_sublineage[5:])
     cstr = get_region_summary(row)
-    aastr = get_aa_set(row)
+    aastr = row.aav
     outstr = ['auto.' + compress_lineage(unalias) + "\t", "Alias of auto." + unalias]
     if len(aastr) > 0:
         outstr.append(", defined by " + ", ".join(aastr))
@@ -163,7 +149,7 @@ def main():
     if args.active_since != None and args.active_since != "None":
         pdf = pdf[(pdf.latest_child.apply(get_date) >= dt.datetime.strptime(args.active_since,"%Y-%m-%d"))]
     if args.model_growth:
-        print("Modeling growth with PyMC3.",file=sys.stderr)
+        print(f"Modeling growth with PyMC3 for {pdf.shape[0]} lineages",file=sys.stderr)
         from model_growth import get_growth_model
         if args.metadata == None:
             print("ERROR: -e must be set with -M output.")
@@ -176,7 +162,10 @@ def main():
         pdf['Exponential Growth Coefficient CI'] = pdf.proposed_sublineage.apply(lambda x:growd.get(x,(np.nan,np.nan))) 
         pdf['Minimum Growth'] = pdf['Exponential Growth Coefficient CI'].apply(lambda x:x[0])
         pdf['Exponential Growth Coefficient CI'] = pdf['Exponential Growth Coefficient CI'].astype(str)
-        pdf = pdf.sort_values("Minimum Growth",ascending=False)
+        pdf.sort_values("Minimum Growth",ascending=False,inplace=True)
+    else:
+        print("Skipping modeling...")
+        pdf.sort_values("proposed_sublineage_size",ascending=False,inplace=True)
     pdf = pdf.head(args.maximum)
     allowed = set()
     if args.samples != "None" and args.samples != None:
@@ -193,20 +182,32 @@ def main():
         if seqlink == np.nan:
             return "No Data Available"
         else:
-            return f"[Download Example Sequence FASTA (LAPIS)]({x})"
-    pdf['seqlink'] = pdf.seqlink.apply(get_lapis_link)
+            return f"[Download Example Sequence FASTA (LAPIS)]({seqlink})"
+    pdf['Download Open Sequence FASTA'] = pdf.seqlink.apply(get_lapis_link)
+    def make_epi_isl_table(epi_isls):
+        if type(epi_isls) == float:
+            return "No Data Available"
+        elif len(epi_isls) == 0:
+            return "No Data Available"
+        else:
+            #use html tags to format as markdown dropdown table.
+            md = ["<details>\n<summary>EPI ISLs</summary>\n"]
+            for ei in epi_isls.split(","):
+                md.append(ei+'\n')
+            md.append('</details>')
+            return "".join(md)
+    pdf['EPI ISLs'] = pdf.epi_isls.apply(make_epi_isl_table)
     pdf['Regions'] = pdf.apply(get_region_summary,axis=1)
     def get_mutation_set(row):
         childhap = t.get_haplotype(row.proposed_sublineage_nid)
         parenthap = t.get_haplotype(row.parent_nid)
         return ",".join(list(childhap.difference(parenthap)))
     pdf['Nucleotide Changes'] = pdf.apply(get_mutation_set,axis=1)
-    pdf['Amino Acid Changes'] = pdf.apply(lambda row: ",".join(get_aa_set(row)),axis=1)
-    targets = ['proposed_sublineage', 'parent', 'proposed_sublineage_size','earliest_child','latest_child','Regions','Nucleotide Changes','Amino Acid Changes','link','taxlink','seqlink']
+    targets = ['proposed_sublineage', 'parent', 'proposed_sublineage_size','earliest_child','latest_child','Regions','Nucleotide Changes','link','taxlink','Download Open Sequence FASTA','EPI ISLs','aav']
     if "Exponential Growth Coefficient CI" in pdf.columns:
         targets.insert(3,'Exponential Growth Coefficient CI')
     pdf = pdf[targets]
-    pdf = pdf.rename({"proposed_sublineage":"Lineage Name", "parent":"Parent Lineage", "proposed_sublineage_size":"Size","earliest_child":"Earliest Appearance","latest_child":"Latest Appearance","final_date":"Last Checked","child_regions":"Circulating In","link":"View On Cov-Spectrum","taxlink":"View On Taxonium (Public Samples Only)",'seqlink':"Download Example Sequence FASTA"},axis=1)
+    pdf = pdf.rename({"proposed_sublineage":"Lineage Name", "parent":"Parent Lineage", "proposed_sublineage_size":"Size","earliest_child":"Earliest Appearance","latest_child":"Latest Appearance","final_date":"Last Checked","child_regions":"Circulating In","link":"View On Cov-Spectrum","taxlink":"View On Taxonium (Public Samples Only)","aav":"Amino Acid Changes"},axis=1)
     if args.output_report != None:
         pdf.to_csv(args.output_report,index=False,sep='\t')
     if not args.local:
