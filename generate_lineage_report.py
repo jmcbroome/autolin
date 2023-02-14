@@ -211,7 +211,7 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None,downloadco
                 return np.nan
             else:
                 #return the fasta download version of this link.
-                return f"https://lapis.cov-spectrum.org/open/v1/sample/fasta?pangoLineage={row.parent}&aaMutations={','.join(list(row.aav))}"
+                return f"https://lapis.cov-spectrum.org/open/v1/sample/fasta?pangoLineage={row.parent}&nucMutations={','.join(mhap)}"
         pdf['seqlink'] = pdf.apply(get_representative_download,axis=1)
         def changes_to_list(aacstr):
             changes = []
