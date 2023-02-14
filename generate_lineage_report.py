@@ -196,8 +196,8 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None,downloadco
             mhap = []
             locs = set()
             for mset in reversed(row.mutations.split(">")):
-                for m in mset:
-                    location = int(mset)
+                for m in mset.split(','):
+                    location = int(m[1:-1])
                     if location not in locs:
                         locs.add(location)
                         mhap.append(m[1:])
