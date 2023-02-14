@@ -217,7 +217,9 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None,downloadco
                 return f"https://lapis.cov-spectrum.org/open/v1/sample/fasta?pangoLineage={row.parent}&nucMutations={row.mset}"
         pdf['seqlink'] = pdf.apply(get_representative_download,axis=1)
         def get_epi_isls(row):
-            query = f"https://lapis.cov-spectrum.org/open/v1/sample/gisaid-epi-isl?pangoLineage={row.parent}&nucMutations={row.mset}&host=Human&accessKey=9Cb3CqmrFnVjO3XCxQLO6gUnKPd"
+            #open version for if we ever have problems with the queries
+            #query = f"https://lapis.cov-spectrum.org/open/v1/sample/gisaid-epi-isl?pangoLineage={row.parent}&nucMutations={row.mset}"
+            query = f"https://lapis.cov-spectrum.org/gisaid/v1/sample/gisaid-epi-isl?pangoLineage={row.parent}&nucMutations={row.mset}&accessKey=9Cb3CqmrFnVjO3XCxQLO6gUnKPd"
             return query
         pdf['epi_isls'] = pdf.apply(get_epi_isls,axis=1)
         def changes_to_list(aacstr):
