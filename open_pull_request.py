@@ -190,12 +190,7 @@ def main():
         elif len(epi_isls) == 0:
             return "No Data Available"
         else:
-            #use html tags to format as markdown dropdown table.
-            md = ["<details>\n<summary>Example EPI ISLs</summary>\n"]
-            for ei in epi_isls.split(","):
-                md.append(ei+'\n')
-            md.append('</details>')
-            return "".join(md)
+            return f"[Get EPI ISLs]({epi_isls})"
     pdf['EPI ISLs'] = pdf.epi_isls.apply(make_epi_isl_table)
     pdf['Regions'] = pdf.apply(get_region_summary,axis=1)
     def get_mutation_set(row):

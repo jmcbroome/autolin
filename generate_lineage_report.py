@@ -217,22 +217,8 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None,downloadco
                 return f"https://lapis.cov-spectrum.org/open/v1/sample/fasta?pangoLineage={row.parent}&nucMutations={row.mset}"
         pdf['seqlink'] = pdf.apply(get_representative_download,axis=1)
         def get_epi_isls(row):
-            query = f"https://lapis.cov-spectrum.org/open/v1/sample/details?pangoLineage={row.parent}&nucMutations={row.mset}"
-            response = requests.get(query)
-            if response.status_code != requests.codes.ok:
-                print(f"WARNING: Lapis Error Status Code {response.status_code} for link {check_query}")
-                return np.nan
-            epi_isl_list = []
-            count = 0
-            for d in response.json()['data']:
-                v = d.get("gisaidEpiIsl",None)
-                if v != None:
-                    count += 1
-                    epi_isl_list.append(v)
-                    #don't save more than 10 epi isls.
-                    if count > 10:
-                        break
-            return ",".join(epi_isl_list)
+            query = f"https://lapis.cov-spectrum.org/open/v1/sample/gisaid-epi-isl?pangoLineage={row.parent}&nucMutations={row.mset}&host=Human&accessKey=9Cb3CqmrFnVjO3XCxQLO6gUnKPd"
+            return query
         pdf['epi_isls'] = pdf.apply(get_epi_isls,axis=1)
         def changes_to_list(aacstr):
             changes = []
