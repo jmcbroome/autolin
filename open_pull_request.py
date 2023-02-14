@@ -165,7 +165,7 @@ def main():
         pdf.sort_values("Minimum Growth",ascending=False,inplace=True)
     else:
         print("Skipping modeling...")
-        pdf.sort_values("proposed_sublineage_size",ascending=False,inplace=True)
+        pdf.sort_values("proposed_sublineage_score",ascending=False,inplace=True)
     pdf = pdf.head(args.maximum)
     allowed = set()
     if args.samples != "None" and args.samples != None:
@@ -191,7 +191,7 @@ def main():
             return "No Data Available"
         else:
             #use html tags to format as markdown dropdown table.
-            md = ["<details>\n<summary>EPI ISLs</summary>\n"]
+            md = ["<details>\n<summary>Example EPI ISLs</summary>\n"]
             for ei in epi_isls.split(","):
                 md.append(ei+'\n')
             md.append('</details>')

@@ -223,10 +223,15 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None,downloadco
                 print(f"WARNING: Lapis Error Status Code {response.status_code} for link {check_query}")
                 return np.nan
             epi_isl_list = []
+            count = 0
             for d in response.json()['data']:
                 v = d.get("gisaidEpiIsl",None)
                 if v != None:
+                    count += 1
                     epi_isl_list.append(v)
+                    #don't save more than 10 epi isls.
+                    if count > 10:
+                        break
             return ",".join(epi_isl_list)
         pdf['epi_isls'] = pdf.apply(get_epi_isls,axis=1)
         def changes_to_list(aacstr):
