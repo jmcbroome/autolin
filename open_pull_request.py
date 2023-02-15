@@ -198,11 +198,12 @@ def main():
         parenthap = t.get_haplotype(row.parent_nid)
         return ",".join(list(childhap.difference(parenthap)))
     pdf['Nucleotide Changes'] = pdf.apply(get_mutation_set,axis=1)
-    targets = ['proposed_sublineage', 'parent', 'proposed_sublineage_size','earliest_child','latest_child','Regions','Nucleotide Changes','link','taxlink','Download Open Sequence FASTA','EPI ISLs','aav']
+    pdf['Lineage Name'] = pdf.proposed_sublineage.apply(compress_lineage)
+    targets = ['Lineage Name', 'parent', 'proposed_sublineage_size','earliest_child','latest_child','Regions','Nucleotide Changes','link','taxlink','Download Open Sequence FASTA','EPI ISLs','aav']
     if "Exponential Growth Coefficient CI" in pdf.columns:
         targets.insert(3,'Exponential Growth Coefficient CI')
     pdf = pdf[targets]
-    pdf = pdf.rename({"proposed_sublineage":"Lineage Name", "parent":"Parent Lineage", "proposed_sublineage_size":"Size","earliest_child":"Earliest Appearance","latest_child":"Latest Appearance","final_date":"Last Checked","child_regions":"Circulating In","link":"View On Cov-Spectrum","taxlink":"View On Taxonium (Public Samples Only)","aav":"Amino Acid Changes"},axis=1)
+    pdf = pdf.rename({"parent":"Parent Lineage", "proposed_sublineage_size":"Size","earliest_child":"Earliest Appearance","latest_child":"Latest Appearance","final_date":"Last Checked","child_regions":"Circulating In","link":"View On Cov-Spectrum","taxlink":"View On Taxonium (Public Samples Only)","aav":"Amino Acid Changes"},axis=1)
     if args.output_report != None:
         pdf.to_csv(args.output_report,index=False,sep='\t')
     if not args.local:
