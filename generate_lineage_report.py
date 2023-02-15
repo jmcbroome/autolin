@@ -190,45 +190,64 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None,downloadco
         pdf['sublineage_escape'] = cev
         pdf['parent_escape'] = pev
         pdf['net_escape_gain'] = nev
-        def get_mset(mutations):
-            mhap = []
-            locs = set()
-            for mset in reversed(mutations.split(">")):
-                for m in mset.split(','):
-                    location = int(m[1:-1])
-                    if location not in locs:
-                        locs.add(location)
-                        mhap.append(m[1:])
-            return ','.join(mhap)
-        pdf['mset'] = pdf.mutations.apply(get_mset)
-        def get_representative_download(row):
-            #query on parent lineage + mutations instead
-            #and use requests to see how many are available.
-            check_query = f"https://lapis.cov-spectrum.org/open/v1/sample/aggregated?pangoLineage={row.parent}&nucMutations={row.mset}"
-            response = requests.get(check_query)
-            if response.status_code != requests.codes.ok:
-                print(f"WARNING: Lapis Error Status Code {response.status_code} for link {check_query}")
-                return np.nan
-            elif response.json()['data'][0]['count'] == 0:
-                print(f"No samples available for lineage proposal {row.proposed_sublineage}")
-                return np.nan
+    def get_reversions(subnid):
+        reversions = []
+        allm = set()
+        past_parent = False
+        for n in t.rsearch(subnid,True):
+            if n.id != subnid:
+                if any([len(a) > 0 for a in n.annotations]):
+                    past_parent = True
+            if past_parent:
+                for m in n.mutations:
+                    opposite = m[-1] + m[1:-1] + m[0]
+                    if opposite in allm:
+                        #record any mutations between the sublineage and the parent that are opposite of a parent mutation.
+                        reversions.append(opposite)
             else:
-                #return the fasta download version of this link.
-                return f"https://lapis.cov-spectrum.org/open/v1/sample/fasta?pangoLineage={row.parent}&nucMutations={row.mset}"
-        pdf['seqlink'] = pdf.apply(get_representative_download,axis=1)
-        def get_epi_isls(row):
-            #open version for if we ever have problems with the queries
-            #query = f"https://lapis.cov-spectrum.org/open/v1/sample/gisaid-epi-isl?pangoLineage={row.parent}&nucMutations={row.mset}"
-            query = f"https://lapis.cov-spectrum.org/gisaid/v1/sample/gisaid-epi-isl?pangoLineage={row.parent}&nucMutations={row.mset}&accessKey=9Cb3CqmrFnVjO3XCxQLO6gUnKPd"
-            return query
-        pdf['epi_isls'] = pdf.apply(get_epi_isls,axis=1)
-        def changes_to_list(aacstr):
-            changes = []
-            for n in aacstr.split(">"):
-                if len(n) > 0:
-                    changes.extend(n.split(","))
-            return changes
-        pdf['taxlink'] = pdf.apply(lambda row:write_taxonium_url(row.parent, changes_to_list(row.mutations)),axis=1)
+                for m in n.mutations:
+                    allm.add(m)
+        return ",".join(reversions)
+    pdf['reversions'] = pdf.proposed_sublineage_nid.apply(get_reversions)
+    def get_mset(mutations):
+        mhap = []
+        locs = set()
+        for mset in reversed(mutations.split(">")):
+            for m in mset.split(','):
+                location = int(m[1:-1])
+                if location not in locs:
+                    locs.add(location)
+                    mhap.append(m[1:])
+        return ','.join(mhap)
+    pdf['mset'] = pdf.mutations.apply(get_mset)
+    def get_representative_download(row):
+        #query on parent lineage + mutations instead
+        #and use requests to see how many are available.
+        check_query = f"https://lapis.cov-spectrum.org/open/v1/sample/aggregated?pangoLineage={row.parent}&nucMutations={row.mset}"
+        response = requests.get(check_query)
+        if response.status_code != requests.codes.ok:
+            print(f"WARNING: Lapis Error Status Code {response.status_code} for link {check_query}")
+            return np.nan
+        elif response.json()['data'][0]['count'] == 0:
+            print(f"No samples available for lineage proposal {row.proposed_sublineage}")
+            return np.nan
+        else:
+            #return the fasta download version of this link.
+            return f"https://lapis.cov-spectrum.org/open/v1/sample/fasta?pangoLineage={row.parent}&nucMutations={row.mset}"
+    pdf['seqlink'] = pdf.apply(get_representative_download,axis=1)
+    def get_epi_isls(row):
+        #open version for if we ever have problems with the queries
+        #query = f"https://lapis.cov-spectrum.org/open/v1/sample/gisaid-epi-isl?pangoLineage={row.parent}&nucMutations={row.mset}"
+        query = f"https://lapis.cov-spectrum.org/gisaid/v1/sample/gisaid-epi-isl?pangoLineage={row.parent}&nucMutations={row.mset}&accessKey=9Cb3CqmrFnVjO3XCxQLO6gUnKPd"
+        return query
+    pdf['epi_isls'] = pdf.apply(get_epi_isls,axis=1)
+    def changes_to_list(aacstr):
+        changes = []
+        for n in aacstr.split(">"):
+            if len(n) > 0:
+                changes.extend(n.split(","))
+        return changes
+    pdf['taxlink'] = pdf.apply(lambda row:write_taxonium_url(row.parent, changes_to_list(row.mutations)),axis=1)
     return pdf
 
 def main():
