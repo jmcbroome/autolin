@@ -31,6 +31,7 @@ def argparser():
     parser.add_argument("--min_country_weeks",type=int,default=5,help="Require at least this many valid data points for inference.")
     parser.add_argument("--target_accept",type=float,default=.8,help="Set the target acceptance parameter for the sampler.")
     parser.add_argument('--maxperc',type=float,default=.1,help="Ignore datapoints where the lineage proportion is greater than this proportion of samples. Use to ignore datapoints that are unlikely to follow an exponential curve, being close to a logistic inflection point.")
+    parser.add_argument("--no-prefix",action='store_true',help="Use to remove the auto. prefix from generated lineages with respect to the files and pull request.")
     args = parser.parse_args()
     return args
 
@@ -68,13 +69,17 @@ def get_region_summary(row):
         cstr = ", ".join(regions_to_report[:-1]) + ", and " + regions_to_report[-1]
     else:
         cstr = ", ".join(regions_to_report[:3]) + f", and {len(regions_to_report)-3} additional countries."
+    assert type(cstr) == str
     return cstr
 
-def write_note(row):
+def write_note(row, no_prefix=False):
     unalias = global_aliasor.uncompress(row.proposed_sublineage[5:])
     cstr = get_region_summary(row)
     aastr = row.aav.split(",")
-    outstr = ['auto.' + compress_lineage(unalias) + "\t", "Alias of auto." + unalias]
+    if no_prefix:
+        outstr = [compress_lineage(unalias) + "\t", "Alias of " + unalias]
+    else:
+        outstr = ['auto.' + compress_lineage(unalias) + "\t", "Alias of auto." + unalias]
     if len(aastr) > 0:
         outstr.append(", defined by " + ", ".join(aastr))
     if len(cstr) > 0:
@@ -111,7 +116,7 @@ def open_pr(branchname,trepo,automerge,reqname,pdf):
         ref = repo.get_git_ref(f"heads/{branchname}")
         ref.delete()
 
-def update_lineage_files(pdf, t, repo, rep, allowed, annotes):
+def update_lineage_files(pdf, t, repo, rep, allowed, annotes, no_prefix=False):
     lincsv = repo + "/lineages.csv"
     skip = set()
     with open(lincsv, "a") as outf:
@@ -127,12 +132,16 @@ def update_lineage_files(pdf, t, repo, rep, allowed, annotes):
                 skip.add(row.proposed_sublineage)
                 continue
             for rs in rsamples:
-                print(rs + "," + row.proposed_sublineage, file=outf)
+                if no_prefix:
+                    psl = row.proposed_sublineage.lstrip("auto.")
+                else:
+                    psl = row.proposed_sublineage
+                print(rs + "," + psl, file=outf)
     print(f"{pdf.shape[0]-len(skip)} lineages added to lineages.csv; {len(skip)} skipped for having no high quality descendents.")
     notecsv = repo + "/lineage_notes.txt"
     pdf = pdf[~pdf.proposed_sublineage.isin(skip)]
     with open(notecsv, "a") as outf:
-        pdf.apply(lambda row: print(write_note(row), file=outf), axis=1)
+        pdf.apply(lambda row: print(write_note(row, no_prefix), file=outf), axis=1)
     print(f"Updated lineages.txt and lineages.csv with {pdf.shape[0]} additional lineages.")
     return pdf
 
@@ -174,10 +183,20 @@ def main():
                 allowed.add(entry.strip())
         print(f"{len(allowed)} total samples are available for updating lineages.csv",file=sys.stderr)
     t = bte.MATree(args.tree)
-    tannotes = t.dump_annotations()
-    pdf = update_lineage_files(pdf, t, args.repository, args.representative, allowed, tannotes)
+    try:
+        tannotes = t.dump_annotations()
+    except:
+        #newer versions of bte have a different function name.
+        tannotes = t.get_annotations()
+    pdf = update_lineage_files(pdf, t, args.repository, args.representative, allowed, tannotes, args.no_prefix)
     pdf['link'] = pdf.link.apply(lambda x:f"[View On Cov-Spectrum]({x})")
-    pdf['taxlink'] = pdf.taxlink.apply(lambda x:f"[View On Taxonium (Public Samples Only)]({x})")
+    def format_taxlink(txl):
+        #skip trying to compress links that weren't generated.
+        if txl[:5] != 'https':
+            return txl
+        else:
+            return f"[View On Taxonium (Public Samples Only)]({txl})"
+    pdf['taxlink'] = pdf.taxlink.apply(format_taxlink)
     def get_lapis_link(seqlink):
         if seqlink == np.nan:
             return "No Data Available"

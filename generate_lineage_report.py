@@ -49,7 +49,10 @@ def write_taxonium_url(parentlin, mutations):
         searchbase['subspecs'].append({"key":key,"type":"genotype","method":"genotype","text":"","gene":gene,"position":loc,"new_residue":state,"min_tips":0})
     searchbase['boolean_method'] = 'and'
     queries = parse.urlencode([("srch",'[' + "".join(str(searchbase).split()).replace("'",'"') + ']'),("enabled",'{"aa1":"true"}'),("zoomToSearch",0)])
-    return urlbase + queries
+    final = urlbase + queries
+    if len(final) > 2000:
+        return "Taxonium link could not be generated- too many characters."
+    return final
 
 def update_aa_haplotype(caas, naas):
     #add all amino acid mutations in naas (new amino acids) to caas (current amino acids) if they don't overlap with an existing protein index.

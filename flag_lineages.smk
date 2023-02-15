@@ -35,6 +35,8 @@ rule open_pull_request:
             commandstr += " --local"
         if eval(str(config["request_params"]["auto_merge"])):
             commandstr += " --automerge"
+        if eval(str(config["request_params"]["no_prefix"])):
+            commandstr += " --no-prefix"
         if eval(str(config["request_params"]["growth_model"]["use_model"])):
             commandstr += " --model_growth \
                            --metadata {input[2]} \
@@ -75,7 +77,7 @@ rule generate_report:
     output:
         "{tree}.proposed.report.tsv"
     shell:
-        "{config[python]} generate_lineage_report.py -i {input[0]} -p {input[1]} -o {output} -f {config[reference_genome]} -g {config[reference_gtf]} -m {input[2]} -d {config[lineage_params][earliest_date]} -r {config[lineage_params][downloadable_samples]}"
+        "{config[python]} generate_lineage_report.py -i {input[0]} -p {input[1]} -o {output} -f {config[reference_genome]} -g {config[reference_gtf]} -m {input[2]} -r {config[lineage_params][downloadable_samples]}" #-d {config[lineage_params][earliest_date]}
 
 rule propose:
     input:
@@ -130,11 +132,15 @@ rule compute_region_weights_and_dates:
         mdf = pd.read_csv(input[0],sep='\t')
         def get_dt(dstr):
             try:
-                return dt.datetime.strptime(dstr,"%Y-%m-%d")
+                if type(dstr) == str:
+                    return dt.datetime.strptime(dstr,"%Y-%m-%d")
+                else:
+                    return dstr
             except:
                 return np.nan
         mdf['Date'] = mdf.date.apply(get_dt)
-        target = mdf[mdf.Date >= dt.datetime.strptime(config['lineage_params']['earliest_date'], "%Y-%m-%d")]
+        mindate = get_dt(config['lineage_params']['earliest_date'])
+        target = mdf[mdf.Date.dt.date >= mindate]
         scale = config['lineage_params']['weight_params']['country_weighting']
         invweights = 1/target.country.value_counts(normalize=True)
         to_use = (invweights-invweights.min())/(invweights.max()-invweights.min()) * scale + 1

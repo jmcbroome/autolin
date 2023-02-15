@@ -284,7 +284,7 @@ def propose(args):
     #decompress all lineage names.
     annotes = {}
     for k,v in cannotes.items():
-        annotes[aliasor.decompress(k)] = v
+        annotes[global_aliasor.uncompress(k)] = v
     if args.annotation != None:
         if args.clear:
             print("ERROR: Cannot select lineages (-a) while clearing lineages (-c)!")
