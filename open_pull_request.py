@@ -31,6 +31,7 @@ def argparser():
     parser.add_argument("--min_country_weeks",type=int,default=5,help="Require at least this many valid data points for inference.")
     parser.add_argument("--target_accept",type=float,default=.8,help="Set the target acceptance parameter for the sampler.")
     parser.add_argument('--maxperc',type=float,default=.1,help="Ignore datapoints where the lineage proportion is greater than this proportion of samples. Use to ignore datapoints that are unlikely to follow an exponential curve, being close to a logistic inflection point.")
+    parser.add_argument("--no-prefix",action='store_true',help="Use to remove the auto. prefix from generated lineages with respect to the files and pull request.")
     args = parser.parse_args()
     return args
 
@@ -68,32 +69,22 @@ def get_region_summary(row):
         cstr = ", ".join(regions_to_report[:-1]) + ", and " + regions_to_report[-1]
     else:
         cstr = ", ".join(regions_to_report[:3]) + f", and {len(regions_to_report)-3} additional countries."
+    assert type(cstr) == str
     return cstr
 
-def get_aa_set(row):
-    aastr = []
-    for aav in row.aa_path.split(">"):
-        if len(aav) > 0:
-            for aa in aav.split(","):
-                al = aa.split(":")[1]
-                oal = al[-1] + al[1:-1] + al[0]
-                opp = aa.split(":")[0] + oal
-                if opp not in aastr:
-                    aastr.append(aa)
-                else:
-                    aastr.remove(opp)
-    return aastr
-
-def write_note(row):
+def write_note(row, no_prefix=False):
     unalias = global_aliasor.uncompress(row.proposed_sublineage[5:])
     cstr = get_region_summary(row)
-    aastr = get_aa_set(row)
-    outstr = ['auto.' + compress_lineage(unalias) + "\t", "Alias of auto." + unalias]
+    aastr = row.aav.split(",")
+    if no_prefix:
+        outstr = [compress_lineage(unalias) + "\t", "Alias of " + unalias]
+    else:
+        outstr = ['auto.' + compress_lineage(unalias) + "\t", "Alias of auto." + unalias]
     if len(aastr) > 0:
         outstr.append(", defined by " + ", ".join(aastr))
     if len(cstr) > 0:
         outstr.append(", found in " + cstr)
-    outstr.append(". Automatically inferred by https://github.com/jmcbroome/automate-lineages-prototype.")
+    outstr.append(". Automatically inferred by https://github.com/jmcbroome/autolin.")
     return ''.join(outstr)
 
 def get_reps(nid, t, target = 5000, allowed = set()):
@@ -125,7 +116,7 @@ def open_pr(branchname,trepo,automerge,reqname,pdf):
         ref = repo.get_git_ref(f"heads/{branchname}")
         ref.delete()
 
-def update_lineage_files(pdf, t, repo, rep, allowed, annotes):
+def update_lineage_files(pdf, t, repo, rep, allowed, annotes, no_prefix=False):
     lincsv = repo + "/lineages.csv"
     skip = set()
     with open(lincsv, "a") as outf:
@@ -141,12 +132,16 @@ def update_lineage_files(pdf, t, repo, rep, allowed, annotes):
                 skip.add(row.proposed_sublineage)
                 continue
             for rs in rsamples:
-                print(rs + "," + row.proposed_sublineage, file=outf)
+                if no_prefix:
+                    psl = row.proposed_sublineage.lstrip("auto.")
+                else:
+                    psl = row.proposed_sublineage
+                print(rs + "," + psl, file=outf)
     print(f"{pdf.shape[0]-len(skip)} lineages added to lineages.csv; {len(skip)} skipped for having no high quality descendents.")
     notecsv = repo + "/lineage_notes.txt"
     pdf = pdf[~pdf.proposed_sublineage.isin(skip)]
     with open(notecsv, "a") as outf:
-        pdf.apply(lambda row: print(write_note(row), file=outf), axis=1)
+        pdf.apply(lambda row: print(write_note(row, no_prefix), file=outf), axis=1)
     print(f"Updated lineages.txt and lineages.csv with {pdf.shape[0]} additional lineages.")
     return pdf
 
@@ -163,7 +158,7 @@ def main():
     if args.active_since != None and args.active_since != "None":
         pdf = pdf[(pdf.latest_child.apply(get_date) >= dt.datetime.strptime(args.active_since,"%Y-%m-%d"))]
     if args.model_growth:
-        print("Modeling growth with PyMC3.",file=sys.stderr)
+        print(f"Modeling growth with PyMC3 for {pdf.shape[0]} lineages",file=sys.stderr)
         from model_growth import get_growth_model
         if args.metadata == None:
             print("ERROR: -e must be set with -M output.")
@@ -175,7 +170,11 @@ def main():
         growd = get_growth_model(mdf, pdf.proposed_sublineage, args.min_country_weeks, args.target_accept, args.tune, args.draws, args.maxperc)
         pdf['Exponential Growth Coefficient CI'] = pdf.proposed_sublineage.apply(lambda x:growd.get(x,(np.nan,np.nan))) 
         pdf['Minimum Growth'] = pdf['Exponential Growth Coefficient CI'].apply(lambda x:x[0])
-        pdf = pdf.sort_values("Minimum Growth",ascending=False)
+        pdf['Exponential Growth Coefficient CI'] = pdf['Exponential Growth Coefficient CI'].astype(str)
+        pdf.sort_values("Minimum Growth",ascending=False,inplace=True)
+    else:
+        print("Skipping modeling...")
+        pdf.sort_values("proposed_sublineage_score",ascending=False,inplace=True)
     pdf = pdf.head(args.maximum)
     allowed = set()
     if args.samples != "None" and args.samples != None:
@@ -184,22 +183,48 @@ def main():
                 allowed.add(entry.strip())
         print(f"{len(allowed)} total samples are available for updating lineages.csv",file=sys.stderr)
     t = bte.MATree(args.tree)
-    tannotes = t.dump_annotations()
-    pdf = update_lineage_files(pdf, t, args.repository, args.representative, allowed, tannotes)
+    try:
+        tannotes = t.dump_annotations()
+    except:
+        #newer versions of bte have a different function name.
+        tannotes = t.get_annotations()
+    pdf = update_lineage_files(pdf, t, args.repository, args.representative, allowed, tannotes, args.no_prefix)
     pdf['link'] = pdf.link.apply(lambda x:f"[View On Cov-Spectrum]({x})")
-    pdf['taxlink'] = pdf.taxlink.apply(lambda x:f"[View On Taxonium (Public Samples Only)]({x})")
+    def format_taxlink(txl):
+        #skip trying to compress links that weren't generated.
+        if txl[:5] != 'https':
+            return txl
+        else:
+            return f"[View On Taxonium (Public Samples Only)]({txl})"
+    pdf['taxlink'] = pdf.taxlink.apply(format_taxlink)
+    def get_lapis_link(seqlink):
+        if type(seqlink) != str or seqlink == "nan":
+            return "No Data Available"
+        else:
+            return f"[Download Example Sequence FASTA (LAPIS)]({seqlink})"
+    pdf['Download Open Sequence FASTA'] = pdf.seqlink.apply(get_lapis_link)
+    def make_epi_isl_table(epi_isls):
+        if type(epi_isls) == float:
+            return "No Data Available"
+        elif len(epi_isls) == 0:
+            return "No Data Available"
+        else:
+            return f"[Get EPI ISLs]({epi_isls})"
+    pdf['EPI ISLs'] = pdf.epi_isls.apply(make_epi_isl_table)
     pdf['Regions'] = pdf.apply(get_region_summary,axis=1)
     def get_mutation_set(row):
         childhap = t.get_haplotype(row.proposed_sublineage_nid)
         parenthap = t.get_haplotype(row.parent_nid)
         return ",".join(list(childhap.difference(parenthap)))
     pdf['Nucleotide Changes'] = pdf.apply(get_mutation_set,axis=1)
-    pdf['Amino Acid Changes'] = pdf.apply(lambda row: ",".join(get_aa_set(row)),axis=1)
-    targets = ['proposed_sublineage', 'parent', 'proposed_sublineage_size','earliest_child','latest_child','Regions','Nucleotide Changes','Amino Acid Changes','link','taxlink']
+    pdf['Lineage Name'] = pdf.proposed_sublineage.apply(compress_lineage)
+    targets = ['Lineage Name', 'parent', 'proposed_sublineage_size','earliest_child','latest_child','Regions','Nucleotide Changes','link','taxlink','Download Open Sequence FASTA','EPI ISLs','aav', 'reversions']
     if "Exponential Growth Coefficient CI" in pdf.columns:
         targets.insert(3,'Exponential Growth Coefficient CI')
     pdf = pdf[targets]
-    pdf = pdf.rename({"proposed_sublineage":"Lineage Name", "parent":"Parent Lineage", "proposed_sublineage_size":"Size","earliest_child":"Earliest Appearance","latest_child":"Latest Appearance","final_date":"Last Checked","child_regions":"Circulating In","link":"View On Cov-Spectrum","taxlink":"View On Taxonium (Public Samples Only)"},axis=1)
+    pdf = pdf.rename({"parent":"Parent Lineage", "proposed_sublineage_size":"Size","earliest_child":"Earliest Appearance","latest_child":"Latest Appearance","final_date":"Last Checked","child_regions":"Circulating In","link":"View On Cov-Spectrum","taxlink":"View On Taxonium (Public Samples Only)","aav":"Amino Acid Changes",'reversions':"Nucleotide Reversions"},axis=1)
+    if args.no_prefix:
+        pdf['Lineage Name'] = pdf['Lineage Name'].apply(lambda x:x.lstrip("auto."))
     if args.output_report != None:
         pdf.to_csv(args.output_report,index=False,sep='\t')
     if not args.local:

@@ -3,6 +3,8 @@ sys.path.append("~/bin:")
 import bte
 import sys
 import argparse
+from pango_aliasor.aliasor import Aliasor
+global_aliasor = Aliasor()
 
 def process_mstr(mstr):
     """Read a mutation string and return the chromosome, location, reference, and alternate alleles.
@@ -275,7 +277,14 @@ def propose(args):
         dumpf = open(args.dump,'w+')
     if args.clear:
         t.apply_annotations({node.id:[] for node in t.depth_first_expansion()})
-    annotes = t.dump_annotations()        
+    try:
+        cannotes = t.dump_annotations()
+    except:
+        cannotes = t.get_annotations() #replacement function in newer versions of bte
+    #decompress all lineage names.
+    annotes = {}
+    for k,v in cannotes.items():
+        annotes[global_aliasor.uncompress(k)] = v
     if args.annotation != None:
         if args.clear:
             print("ERROR: Cannot select lineages (-a) while clearing lineages (-c)!")
@@ -385,6 +394,11 @@ def propose(args):
     if args.output != None:
         annd = {}
         for k,v in annotes.items():
+            try:
+                k = global_aliasor.compress(k)
+            except:
+                print(f"Could not compress lineage {k}")
+                pass
             if v not in annd:
                 annd[v] = []
             if len(annd[v]) == 2:
@@ -398,6 +412,11 @@ def propose(args):
     if args.labels != None:
         labels = {}
         for ann, nid in annotes.items():
+            try:
+                ann = global_aliasor.compress(ann)
+            except:
+                print(f"Could not compress lineage {ann}")
+                pass
             for leaf in t.get_leaves_ids(nid):
                 if leaf not in labels:
                     labels[leaf] = [ann]

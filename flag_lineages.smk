@@ -1,6 +1,5 @@
 import sys
 from pathlib import Path
-sys.path.insert(0, Path(workflow.basedir).parent.as_posix())
 import pandas as pd
 import datetime as dt
 import numpy as np
@@ -36,6 +35,8 @@ rule open_pull_request:
             commandstr += " --local"
         if eval(str(config["request_params"]["auto_merge"])):
             commandstr += " --automerge"
+        if eval(str(config["request_params"]["no_prefix"])):
+            commandstr += " --no-prefix"
         if eval(str(config["request_params"]["growth_model"]["use_model"])):
             commandstr += " --model_growth \
                            --metadata {input[2]} \
@@ -54,10 +55,10 @@ rule write_issues:
     output:
         "{tree}.issues.log"
     run:
-        if eval(str(config["reporting_params"]["local_only"])):
-            shell("{config[python]} write_issues.py --local -i {input[0]} -t {input[1]} -m {input[2]} -n {config[reporting_params][number]} -s {config[reporting_params][sort_by]} -p {config[reporting_params][prefix]} -c {config[reporting_params][samples_named]}")
+        if eval(str(config["issue_params"]["local_only"])):
+            shell("{config[python]} write_issues.py --local -i {input[0]} -t {input[1]} -m {input[2]} -n {config[issue_params][number]} -s {config[issue_params][sort_by]} -p {config[issue_params][prefix]} -c {config[issue_params][samples_named]}")
         else:
-            shell("{config[python]} write_issues.py -i {input[0]} -t {input[1]} -m {input[2]} -n {config[reporting_params][number]} -s {config[reporting_params][sort_by]} -p {config[reporting_params][prefix]} -c {config[reporting_params][samples_named]}")
+            shell("{config[python]} write_issues.py -i {input[0]} -t {input[1]} -m {input[2]} -n {config[issue_params][number]} -s {config[issue_params][sort_by]} -p {config[issue_params][prefix]} -c {config[issue_params][samples_named]}")
 
 rule add_metadata:
     input:
@@ -76,7 +77,7 @@ rule generate_report:
     output:
         "{tree}.proposed.report.tsv"
     shell:
-        "{config[python]} generate_lineage_report.py -i {input[0]} -p {input[1]} -o {output} -f {config[reference_genome]} -g {config[reference_gtf]} -m {input[2]} -d {config[lineage_params][earliest_date]}"
+        "{config[python]} generate_lineage_report.py -i {input[0]} -p {input[1]} -o {output} -f {config[reference_genome]} -g {config[reference_gtf]} -m {input[2]} -r {config[lineage_params][downloadable_samples]}" #-d {config[lineage_params][earliest_date]}
 
 rule propose:
     input:
@@ -91,7 +92,7 @@ rule propose:
     run:
         d = {"input":input[0]}
         for k,v in config['lineage_params'].items():
-            if k == 'weight_params' or k == 'earliest_date':
+            if k == 'weight_params' or k == 'earliest_date' or k == 'downloadable_samples':
                 continue #these are used elsewhere.
             if v in ['None','True','False']:
                 d[k] = eval(v)
@@ -131,11 +132,15 @@ rule compute_region_weights_and_dates:
         mdf = pd.read_csv(input[0],sep='\t')
         def get_dt(dstr):
             try:
-                return dt.datetime.strptime(dstr,"%Y-%m-%d")
+                if type(dstr) == str:
+                    return dt.datetime.strptime(dstr,"%Y-%m-%d")
+                else:
+                    return dstr
             except:
                 return np.nan
         mdf['Date'] = mdf.date.apply(get_dt)
-        target = mdf[mdf.Date >= dt.datetime.strptime(config['lineage_params']['earliest_date'], "%Y-%m-%d")]
+        mindate = get_dt(config['lineage_params']['earliest_date'])
+        target = mdf[mdf.Date.dt.date >= mindate]
         scale = config['lineage_params']['weight_params']['country_weighting']
         invweights = 1/target.country.value_counts(normalize=True)
         to_use = (invweights-invweights.min())/(invweights.max()-invweights.min()) * scale + 1
@@ -194,5 +199,4 @@ rule collect_node_statistics:
         #at some point these should be resolved and UShER/matUtils can be added to the env.yml. 
         "usher.yml"
     shell:
-        "matUtils summary -i {input} -N {output}" #eventually.
-        # "matUtils extract -i {input} --node-stats {output}"
+        "matUtils summary -i {input} -N {output}"

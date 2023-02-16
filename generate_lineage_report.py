@@ -7,6 +7,7 @@ import numpy as np
 import datetime as dt
 import argparse
 from urllib import parse
+import requests
 
 def argparser():
     parser = argparse.ArgumentParser(description="Compute detailed lineage reports for all existing lineages in the tree.")
@@ -17,6 +18,7 @@ def argparser():
     parser.add_argument("-f", "--reference", default=None, help="Path to a reference fasta file. Use with -g to annotate amino acid changes and immune escape in the expanded output.")
     parser.add_argument("-g", "--gtf", default=None, help="Path to a reference gtf file. Use with -f to annotate amino acid changes and immune escape in the expanded output.")
     parser.add_argument("-d", "--date", default=None, help="Ignore individual samples from before this date when computing reports. Format as %Y-%m-%d")
+    parser.add_argument("-r", "--downloadable_representative", type=int, default=10, help="Include up to this many samples in the representative sequence download link.")
     args = parser.parse_args()
     return args
 
@@ -47,9 +49,23 @@ def write_taxonium_url(parentlin, mutations):
         searchbase['subspecs'].append({"key":key,"type":"genotype","method":"genotype","text":"","gene":gene,"position":loc,"new_residue":state,"min_tips":0})
     searchbase['boolean_method'] = 'and'
     queries = parse.urlencode([("srch",'[' + "".join(str(searchbase).split()).replace("'",'"') + ']'),("enabled",'{"aa1":"true"}'),("zoomToSearch",0)])
-    return urlbase + queries
+    final = urlbase + queries
+    if len(final) > 2000:
+        return "Taxonium link could not be generated- too many characters."
+    return final
 
-def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None):
+def update_aa_haplotype(caas, naas):
+    #add all amino acid mutations in naas (new amino acids) to caas (current amino acids) if they don't overlap with an existing protein index.
+    cindexes = set([(aa.gene, aa.aa_index) for aa in caas])
+    for naa in naas:
+        #ignore synonymous mutations
+        if naa.original_aa != naa.alternative_aa:
+            #we proceed out to in, so sites are "locked in" once a change is seen.
+            if (naa.gene, naa.aa_index) not in cindexes:
+                caas.append(naa)
+    return caas
+
+def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None,downloadcount=10):
     print("Filling out metadata with terminal lineages.")
     def get_latest_lineage(s):
         for anc in t.rsearch(s):
@@ -148,44 +164,96 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None):
         pev = []
         nev = []
         for i, row in pdf.iterrows():
-            hapstring = []
-            child_changes = []
-            parent_changes = []
+            child_aas = []
+            parent_aas = []
+            all_aas = []
             past_parent = False
             for n in t.rsearch(row.proposed_sublineage_nid,True):
                 #further filter aa changes in orf1a/b so that they're properly processed for taxonium viewing and not counted redundantly
                 #in our code, ORF1a changes are annotated as both ORF1a and ORF1ab, ORF1b are annotated as ORF1ab only.
-                aas = []
-                for a in translation.get(n.id,[]):
-                    if a.original_aa == a.alternative_aa:
-                        continue #ignore synonymous mutations
-                    aas.append(a)
+                alla = translation.get(n.id,[])
                 if n.id == row.parent_nid:
                     past_parent = True
                 if past_parent:
-                    parent_changes.extend([a.aa_index for a in aas if a.gene == 'S' and a.aa_index in calculator.sites])
+                    #only mutations at or behind the parent node contribute to its haplotype.
+                    parent_aas = update_aa_haplotype(parent_aas, alla)
                 else:
-                    child_changes.extend([a.aa_index for a in aas if a.gene == 'S' and a.aa_index in calculator.sites])
-                    hapstring.append(",".join([aav.gene+":"+aav.aa for aav in aas]))
-            hstr = ">".join(hapstring[::-1]) 
-            child_escape = calculator.binding_retained(child_changes + parent_changes)
-            parent_escape = calculator.binding_retained(parent_changes)
+                    child_aas = update_aa_haplotype(child_aas, alla)
+            hstr = ",".join([aa.aa_string() for aa in child_aas])
+            cspikes = [a.aa_index for a in all_aas if a.gene == 'S' and a.aa_index in calculator.sites and a.original_aa != a.alternative_aa]
+            pspikes = [a.aa_index for a in parent_aas if a.gene == 'S' and a.aa_index in calculator.sites and a.original_aa != a.alternative_aa]
+            child_escape = calculator.binding_retained(cspikes)
+            parent_escape = calculator.binding_retained(pspikes)
             net_escape_gain = parent_escape - child_escape
             hstrs.append(hstr)
             cev.append(child_escape)
             pev.append(parent_escape)
             nev.append(net_escape_gain)
-        pdf['aa_path'] = hstrs
+        pdf['aav'] = hstrs
         pdf['sublineage_escape'] = cev
         pdf['parent_escape'] = pev
-        pdf['net_escape_gain'] = nev   
-        def changes_to_list(aacstr):
-            changes = []
-            for n in aacstr.split(">"):
-                if len(n) > 0:
-                    changes.extend(n.split(","))
-            return changes
-        pdf['taxlink'] = pdf.apply(lambda row:write_taxonium_url(row.parent, changes_to_list(row.mutations)),axis=1)
+        pdf['net_escape_gain'] = nev
+    def get_reversions(subnid):
+        reversions = []
+        allm = set()
+        past_parent = False
+        for n in t.rsearch(subnid,True):
+            if n.id != subnid:
+                if any([len(a) > 0 for a in n.annotations]):
+                    past_parent = True
+            if past_parent:
+                for m in n.mutations:
+                    opposite = m[-1] + m[1:-1] + m[0]
+                    if opposite in allm:
+                        #record any mutations between the sublineage and the parent that are opposite of a parent mutation.
+                        reversions.append(opposite)
+            else:
+                for m in n.mutations:
+                    allm.add(m)
+        if len(reversions) > 0:
+            return ",".join(reversions)
+        else:
+            return "No Reversions"
+    pdf['reversions'] = pdf.proposed_sublineage_nid.apply(get_reversions)
+    def get_mset(mutations):
+        mhap = []
+        locs = set()
+        for mset in reversed(mutations.split(">")):
+            for m in mset.split(','):
+                location = int(m[1:-1])
+                if location not in locs:
+                    locs.add(location)
+                    mhap.append(m[1:])
+        return ','.join(mhap)
+    pdf['mset'] = pdf.mutations.apply(get_mset)
+    def get_representative_download(row):
+        #query on parent lineage + mutations instead
+        #and use requests to see how many are available.
+        check_query = f"https://lapis.cov-spectrum.org/open/v1/sample/aggregated?pangoLineage={row.parent}&nucMutations={row.mset}"
+        response = requests.get(check_query)
+        if response.status_code != requests.codes.ok:
+            print(f"WARNING: Lapis Error Status Code {response.status_code} for link {check_query}")
+            return np.nan
+        elif response.json()['data'][0]['count'] == 0:
+            print(f"No samples available for lineage proposal {row.proposed_sublineage}")
+            return np.nan
+        else:
+            #return the fasta download version of this link.
+            return f"https://lapis.cov-spectrum.org/open/v1/sample/fasta?pangoLineage={row.parent}&nucMutations={row.mset}"
+    pdf['seqlink'] = pdf.apply(get_representative_download,axis=1)
+    def get_epi_isls(row):
+        #open version for if we ever have problems with the queries
+        #query = f"https://lapis.cov-spectrum.org/open/v1/sample/gisaid-epi-isl?pangoLineage={row.parent}&nucMutations={row.mset}"
+        query = f"https://lapis.cov-spectrum.org/gisaid/v1/sample/gisaid-epi-isl?pangoLineage={row.parent}&nucMutations={row.mset}&accessKey=9Cb3CqmrFnVjO3XCxQLO6gUnKPd"
+        return query
+    pdf['epi_isls'] = pdf.apply(get_epi_isls,axis=1)
+    def changes_to_list(aacstr):
+        changes = []
+        for n in aacstr.split(">"):
+            if len(n) > 0:
+                changes.extend(n.split(","))
+        return changes
+    pdf['taxlink'] = pdf.apply(lambda row:write_taxonium_url(row.parent, changes_to_list(row.mutations)),axis=1)
     return pdf
 
 def main():
@@ -193,7 +261,7 @@ def main():
     mdf = pd.read_csv(args.metadata,sep='\t')
     t = bte.MATree(args.input)
     pdf = pd.read_csv(args.proposed,sep='\t')
-    odf = fill_output_table(t,pdf,mdf,args.reference,args.gtf,args.date)
+    odf = fill_output_table(t,pdf,mdf,args.reference,args.gtf,args.date,args.downloadable_representative)
     odf.to_csv(args.output,sep='\t',index=False)
 
 if __name__ == "__main__":

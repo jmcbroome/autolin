@@ -35,17 +35,21 @@ def get_growth_model(df, targets = [], min_data = 2, target_accept = 0.9, tune =
             continue
         print(f"Fitting model on annotation {ann} with {len(Y)} consecutive countryweeks of data.")
         #fit the model!
-        with pm.Model() as model:
-            growth = pm.Normal(name='growth', sd=5)
-            initial_proportion = pm.TruncatedNormal(name='initial_proportion',upper=1,lower=0)
-            #cap the initial proportion value at 1 (100%) and log it for use. 
-            #This value will be informed for week 0 of a set of values. It should vary across countries, but not by too much.
-            log_initial_proportion = pm.Deterministic(name="log_initial_proportion",var=np.log(initial_proportion))
-            #estimate our expected proportion for this week, given our initial proportion and week. correct it back by exponentiation.
-            current_proportion = pm.Deterministic(name='base_proportion', var = np.e**(log_initial_proportion + growth * X_week))
-            #sampling process with our actual observed values.
-            y_obs = pm.Binomial(name='sampled', n=X_country_week_total, p=current_proportion, observed=Y)
-            #perform the actual inference process.
-            idata = pm.sample(draws=draws,tune=tune,progressbar=False,return_inferencedata=True,target_accept=target_accept)
-        growd[ann] = idata.posterior.growth.quantile(q=[0.025,0.975]).values
+        try:
+            with pm.Model() as model:
+                growth = pm.Normal(name='growth', sd=5)
+                initial_proportion = pm.TruncatedNormal(name='initial_proportion',upper=1,lower=0)
+                #cap the initial proportion value at 1 (100%) and log it for use. 
+                #This value will be informed for week 0 of a set of values. It should vary across countries, but not by too much.
+                log_initial_proportion = pm.Deterministic(name="log_initial_proportion",var=np.log(initial_proportion))
+                #estimate our expected proportion for this week, given our initial proportion and week. correct it back by exponentiation.
+                current_proportion = pm.Deterministic(name='base_proportion', var = np.e**(log_initial_proportion + growth * X_week))
+                #sampling process with our actual observed values.
+                y_obs = pm.Binomial(name='sampled', n=X_country_week_total, p=current_proportion, observed=Y)
+                #perform the actual inference process.
+                idata = pm.sample(draws=draws,tune=tune,progressbar=False,return_inferencedata=True,target_accept=target_accept)
+            growd[ann] = idata.posterior.growth.quantile(q=[0.025,0.975]).values
+        except pymc3.exceptions.SamplingError:
+            print(f"WARNING: Modeling failed for lineage {ann} due to initial model evaluation; check logs")
+            growd[ann] = (np.nan,np.nan)
     return growd
