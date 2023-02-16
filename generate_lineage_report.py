@@ -210,7 +210,10 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None,downloadco
             else:
                 for m in n.mutations:
                     allm.add(m)
-        return ",".join(reversions)
+        if len(reversions) > 0:
+            return ",".join(reversions)
+        else:
+            return "No Reversions"
     pdf['reversions'] = pdf.proposed_sublineage_nid.apply(get_reversions)
     def get_mset(mutations):
         mhap = []

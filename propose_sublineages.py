@@ -394,6 +394,11 @@ def propose(args):
     if args.output != None:
         annd = {}
         for k,v in annotes.items():
+            try:
+                k = global_aliasor.compress(k)
+            except:
+                print(f"Could not compress lineage {k}")
+                pass
             if v not in annd:
                 annd[v] = []
             if len(annd[v]) == 2:
@@ -407,6 +412,11 @@ def propose(args):
     if args.labels != None:
         labels = {}
         for ann, nid in annotes.items():
+            try:
+                ann = global_aliasor.compress(ann)
+            except:
+                print(f"Could not compress lineage {ann}")
+                pass
             for leaf in t.get_leaves_ids(nid):
                 if leaf not in labels:
                     labels[leaf] = [ann]

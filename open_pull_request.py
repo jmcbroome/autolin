@@ -198,7 +198,7 @@ def main():
             return f"[View On Taxonium (Public Samples Only)]({txl})"
     pdf['taxlink'] = pdf.taxlink.apply(format_taxlink)
     def get_lapis_link(seqlink):
-        if seqlink == np.nan:
+        if type(seqlink) != str or seqlink == "nan":
             return "No Data Available"
         else:
             return f"[Download Example Sequence FASTA (LAPIS)]({seqlink})"
@@ -223,6 +223,8 @@ def main():
         targets.insert(3,'Exponential Growth Coefficient CI')
     pdf = pdf[targets]
     pdf = pdf.rename({"parent":"Parent Lineage", "proposed_sublineage_size":"Size","earliest_child":"Earliest Appearance","latest_child":"Latest Appearance","final_date":"Last Checked","child_regions":"Circulating In","link":"View On Cov-Spectrum","taxlink":"View On Taxonium (Public Samples Only)","aav":"Amino Acid Changes",'reversions':"Nucleotide Reversions"},axis=1)
+    if args.no_prefix:
+        pdf['Lineage Name'] = pdf['Lineage Name'].apply(lambda x:x.lstrip("auto."))
     if args.output_report != None:
         pdf.to_csv(args.output_report,index=False,sep='\t')
     if not args.local:
