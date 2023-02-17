@@ -226,6 +226,8 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None,downloadco
                     mhap.append(m[1:])
         return ','.join(mhap)
     pdf['mset'] = pdf.mutations.apply(get_mset)
+    #remove any entries that have no mutations with respect to the parent.
+    pdf = pdf[pdf.mset.apply(lambda x:len(x) > 0)]
     def get_representative_download(row):
         #query on parent lineage + mutations instead
         #and use requests to see how many are available.
