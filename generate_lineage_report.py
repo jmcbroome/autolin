@@ -227,7 +227,15 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None,downloadco
         return ','.join(mhap)
     pdf['mset'] = pdf.mutations.apply(get_mset)
     #remove any entries that have no mutations with respect to the parent.
-    pdf = pdf[pdf.mset.apply(lambda x:len(x) > 0)]
+    trackrev = open("reversion_proposals_blocked.log","w+")
+    def log_mset(row):
+        if len(row.mset) > 0:
+            return True
+        else:
+            print(f"Proposal {row.proposed_sublineage} child of {row.parent} blocked for having no unique mutations; branch nid {row.proposed_sublineage_nid}, reversions {row.reversions}",file=trackrev)
+            return False
+    pdf = pdf[pdf.apply(log_mset,axis=1)]
+    trackrev.close()
     def get_representative_download(row):
         #query on parent lineage + mutations instead
         #and use requests to see how many are available.
