@@ -18,7 +18,6 @@ def argparser():
     parser.add_argument("-f", "--reference", default=None, help="Path to a reference fasta file. Use with -g to annotate amino acid changes and immune escape in the expanded output.")
     parser.add_argument("-g", "--gtf", default=None, help="Path to a reference gtf file. Use with -f to annotate amino acid changes and immune escape in the expanded output.")
     parser.add_argument("-d", "--date", default=None, help="Ignore individual samples from before this date when computing reports. Format as %Y-%m-%d")
-    parser.add_argument("-r", "--downloadable_representative", type=int, default=10, help="Include up to this many samples in the representative sequence download link.")
     args = parser.parse_args()
     return args
 
@@ -65,7 +64,7 @@ def update_aa_haplotype(caas, naas):
                 caas.append(naa)
     return caas
 
-def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None,downloadcount=10):
+def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None):
     print("Filling out metadata with terminal lineages.")
     def get_latest_lineage(s):
         for anc in t.rsearch(s):
@@ -271,7 +270,7 @@ def main():
     mdf = pd.read_csv(args.metadata,sep='\t')
     t = bte.MATree(args.input)
     pdf = pd.read_csv(args.proposed,sep='\t')
-    odf = fill_output_table(t,pdf,mdf,args.reference,args.gtf,args.date,args.downloadable_representative)
+    odf = fill_output_table(t,pdf,mdf,args.reference,args.gtf,args.date)
     odf.to_csv(args.output,sep='\t',index=False)
 
 if __name__ == "__main__":
