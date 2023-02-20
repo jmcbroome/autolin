@@ -77,7 +77,7 @@ rule generate_report:
     output:
         "{tree}.proposed.report.tsv"
     shell:
-        "{config[python]} generate_lineage_report.py -i {input[0]} -p {input[1]} -o {output} -f {config[reference_genome]} -g {config[reference_gtf]} -m {input[2]} -r {config[lineage_params][downloadable_samples]}" #-d {config[lineage_params][earliest_date]}
+        "{config[python]} generate_lineage_report.py -i {input[0]} -p {input[1]} -o {output} -f {config[reference_genome]} -g {config[reference_gtf]} -m {input[2]}"
 
 rule propose:
     input:
@@ -92,7 +92,7 @@ rule propose:
     run:
         d = {"input":input[0]}
         for k,v in config['lineage_params'].items():
-            if k == 'weight_params' or k == 'earliest_date' or k == 'downloadable_samples':
+            if k == 'weight_params' or k == 'earliest_date':
                 continue #these are used elsewhere.
             if v in ['None','True','False']:
                 d[k] = eval(v)
