@@ -219,10 +219,11 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None):
         locs = set()
         for mset in reversed(mutations.split(">")):
             for m in mset.split(','):
-                location = int(m[1:-1])
-                if location not in locs:
-                    locs.add(location)
-                    mhap.append(m[1:])
+                if len(m) > 0:
+                    location = int(m[1:-1])
+                    if location not in locs:
+                        locs.add(location)
+                        mhap.append(m[1:])
         return ','.join(mhap)
     pdf['mset'] = pdf.mutations.apply(get_mset)
     #remove any entries that have no mutations with respect to the parent.
