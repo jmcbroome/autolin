@@ -72,25 +72,11 @@ def get_region_summary(row):
     assert type(cstr) == str
     return cstr
 
-def write_note(row, no_prefix=False):
-    unalias = global_aliasor.uncompress(row.proposed_sublineage[5:])
-    cstr = get_region_summary(row)
-    aastr = row.aav.split(",")
-    if no_prefix:
-        outstr = [compress_lineage(unalias) + "\t", "Alias of " + unalias]
-    else:
-        outstr = ['auto.' + compress_lineage(unalias) + "\t", "Alias of auto." + unalias]
-    if len(aastr) > 0:
-        outstr.append(", defined by " + ", ".join(aastr))
-    if len(cstr) > 0:
-        outstr.append(", found in " + cstr)
-    outstr.append(". Automatically inferred by https://github.com/jmcbroome/autolin.")
-    return ''.join(outstr)
-
 def get_reps(nid, t, target = 5000, allowed = set()):
     total = t.get_leaves_ids(nid)
     if len(allowed) > 0:
-        total = [l for l in total if l in allowed]
+        #allow partial matching of names as well.
+        total = [l for l in total if l in allowed or l.split("|")[0] in allowed]
     if len(total) <= target:
         return total
     else:
@@ -115,6 +101,40 @@ def open_pr(branchname,trepo,automerge,reqname,pdf):
         repo.merge("master", head.commit.sha, "automerge")
         ref = repo.get_git_ref(f"heads/{branchname}")
         ref.delete()
+
+def write_note(row, no_prefix=False):
+    unalias = global_aliasor.uncompress(row.proposed_sublineage[5:])
+    cstr = get_region_summary(row)
+    aastr = row.aav.split(",")
+    if no_prefix:
+        outstr = [compress_lineage(unalias) + "\t", "Alias of " + unalias]
+    else:
+        outstr = ['auto.' + compress_lineage(unalias) + "\t", "Alias of auto." + unalias]
+    if len(aastr) > 0:
+        outstr.append(", defined by " + ", ".join(aastr))
+    if len(cstr) > 0:
+        outstr.append(", found in " + cstr)
+    outstr.append(". Automatically inferred by https://github.com/jmcbroome/autolin.")
+    return ''.join(outstr)
+
+def sort_notes(pdf, notecsv, no_prefix=False)    
+    pdf = pdf[~pdf.proposed_sublineage.isin(skip)]
+    note_lookup = {}
+    for i,d in pdf.iterrows():
+        note = write_note(d, no_prefix)
+        if d.parent not in note_lookup:
+            note_lookup[d.parent] = []
+        note_lookup[d.parent].append(note)
+    with open(notecsv) as inf:
+        with open(notecsv + ".updated") as outf:
+            for entry in notecsv:
+                lin = entry.strip().split('\t')[0]
+                print(entry.strip(),file=outf)
+                #if it has any new child lineages, add their notes after.
+                for clin in note_lookup.get(lin,[]):
+                    print(clin,file=outf)
+    os.rename(notecsv + ".updated", notecsv)
+    print(f"Updated lineages.txt and lineages.csv with {pdf.shape[0]} additional lineages.")
 
 def update_lineage_files(pdf, t, repo, rep, allowed, annotes, no_prefix=False):
     lincsv = repo + "/lineages.csv"
@@ -141,10 +161,7 @@ def update_lineage_files(pdf, t, repo, rep, allowed, annotes, no_prefix=False):
                 print(rs_subset + "," + psl, file=outf)
     print(f"{pdf.shape[0]-len(skip)} lineages added to lineages.csv; {len(skip)} skipped for having no high quality descendents.")
     notecsv = repo + "/lineage_notes.txt"
-    pdf = pdf[~pdf.proposed_sublineage.isin(skip)]
-    with open(notecsv, "a") as outf:
-        pdf.apply(lambda row: print(write_note(row, no_prefix), file=outf), axis=1)
-    print(f"Updated lineages.txt and lineages.csv with {pdf.shape[0]} additional lineages.")
+    sort_notes(pdf, notecsv, no_prefix)
     return pdf
 
 def get_date(d):
