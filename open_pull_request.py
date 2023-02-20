@@ -132,11 +132,13 @@ def update_lineage_files(pdf, t, repo, rep, allowed, annotes, no_prefix=False):
                 skip.add(row.proposed_sublineage)
                 continue
             for rs in rsamples:
+                #only include the first part. not the ISL or the date.
+                rs_subset = rs.split("|")[0]
                 if no_prefix:
                     psl = row.proposed_sublineage.lstrip("auto.")
                 else:
                     psl = row.proposed_sublineage
-                print(rs + "," + psl, file=outf)
+                print(rs_subset + "," + psl, file=outf)
     print(f"{pdf.shape[0]-len(skip)} lineages added to lineages.csv; {len(skip)} skipped for having no high quality descendents.")
     notecsv = repo + "/lineage_notes.txt"
     pdf = pdf[~pdf.proposed_sublineage.isin(skip)]
