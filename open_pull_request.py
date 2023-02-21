@@ -118,7 +118,6 @@ def write_note(row, no_prefix=False):
     return ''.join(outstr)
 
 def sort_notes(pdf, notecsv, no_prefix=False):
-    pdf = pdf[~pdf.proposed_sublineage.isin(skip)]
     note_lookup = {}
     for i,d in pdf.iterrows():
         note = write_note(d, no_prefix)
@@ -161,6 +160,7 @@ def update_lineage_files(pdf, t, repo, rep, allowed, annotes, no_prefix=False):
                 print(rs_subset + "," + psl, file=outf)
     print(f"{pdf.shape[0]-len(skip)} lineages added to lineages.csv; {len(skip)} skipped for having no high quality descendents.")
     notecsv = repo + "/lineage_notes.txt"
+    pdf = pdf[~pdf.proposed_sublineage.isin(skip)]
     sort_notes(pdf, notecsv, no_prefix)
     return pdf
 
