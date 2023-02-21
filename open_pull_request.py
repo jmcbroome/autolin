@@ -117,7 +117,7 @@ def write_note(row, no_prefix=False):
     outstr.append(". Automatically inferred by https://github.com/jmcbroome/autolin.")
     return ''.join(outstr)
 
-def sort_notes(pdf, notecsv, no_prefix=False)    
+def sort_notes(pdf, notecsv, no_prefix=False):
     pdf = pdf[~pdf.proposed_sublineage.isin(skip)]
     note_lookup = {}
     for i,d in pdf.iterrows():
