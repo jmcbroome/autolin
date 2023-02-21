@@ -125,7 +125,7 @@ def sort_notes(pdf, notecsv, no_prefix=False):
             note_lookup[d.parent] = []
         note_lookup[d.parent].append(note)
     with open(notecsv) as inf:
-        with open(notecsv + ".updated") as outf:
+        with open(notecsv + ".updated",'w+') as outf:
             for entry in notecsv:
                 lin = entry.strip().split('\t')[0]
                 print(entry.strip(),file=outf)
