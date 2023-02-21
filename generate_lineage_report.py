@@ -141,8 +141,8 @@ def fill_output_table(t,pdf,mdf,fa_file=None,gtf_file=None,mdate=None):
     def get_separating_mutations(row):
         hapstring = []
         for n in t.rsearch(row.proposed_sublineage_nid,True):
-            # if n.id == row.parent_nid:
-                # break
+            if n.id == row.parent_nid:
+                break
             hapstring.append(",".join(n.mutations))
         return ">".join(hapstring[::-1])
     pdf['mutations'] = pdf.apply(get_separating_mutations,axis=1)
