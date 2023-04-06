@@ -276,7 +276,7 @@ def propose(args):
     if args.dump != None:
         dumpf = open(args.dump,'w+')
     if args.clear:
-        t.apply_annotations({node.id:[] for node in t.depth_first_expansion()})
+        t.apply_node_annotations({node.id:[] for node in t.depth_first_expansion()})
     try:
         cannotes = t.dump_annotations()
     except:
@@ -405,7 +405,7 @@ def propose(args):
                 annd[v][1] = k
             else:
                 annd[v].append(k)
-        t.apply_annotations(annd)
+        t.apply_node_annotations(annd)
         t.save_pb(args.output)
     if args.dump != None:
         dumpf.close()
