@@ -19,7 +19,7 @@ lineage_params:
   weight_params:
     country_weighting: 10
     escape_weighting: 0
-python: python3.8
+python: python3
 reference_genome: ./reference/NC_045512v2.fa
 reference_gtf: ./reference/ncbiGenes.noORF1a.gtf
 request_params:
