@@ -10,7 +10,7 @@ lineage_params:
   annotation: B.1.1.529
   cutoff: 0.99
   distinction: 1
-  earliest_date: 2022-12-21
+  earliest_date: 2023-01-01
   floor: 3
   gene: None
   minsamples: 10
@@ -19,7 +19,7 @@ lineage_params:
   weight_params:
     country_weighting: 10
     escape_weighting: 0
-python: /home/jakob/anaconda3/envs/newusher/bin/python3.8
+python: python3.8
 reference_genome: ./reference/NC_045512v2.fa
 reference_gtf: ./reference/ncbiGenes.noORF1a.gtf
 request_params:
@@ -34,7 +34,7 @@ request_params:
     target_accept: 0.9
     tune: 1500
     use_model: true
-  local_only: false
+  local_only: true
   maximum: 20
   no_prefix: true
   representative_number: 1000
