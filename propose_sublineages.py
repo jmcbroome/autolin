@@ -27,7 +27,13 @@ def process_mstr(mstr):
 
 def compute_mutation_weight(node,mutweights):
     if len(mutweights) == 0:
-        return len(node.mutations)
+        #if the mutweights parameter is not used, use the branch length attribute
+        #in a standard MAT this is equal to len(node.mutations)
+        #in alternative formats, it may be other float values.
+        if node.branch_length < 0:
+            print(f"WARNING: Negative branch length detected on node {node.id}! Treating as 0...")
+            return 0
+        return node.branch_length
     dist = 0
     for m in node.mutations:
         _, loc, _, alt = process_mstr(m)
@@ -397,7 +403,7 @@ def propose(args):
             try:
                 k = global_aliasor.compress(k)
             except:
-                print(f"Could not compress lineage {k}")
+                # print(f"Could not compress lineage {k}")
                 pass
             if v not in annd:
                 annd[v] = []
@@ -405,6 +411,7 @@ def propose(args):
                 annd[v][1] = k
             else:
                 annd[v].append(k)
+        # print(f"DEBUG: final size of annotation dict {len(annd)}")
         t.apply_node_annotations(annd)
         t.save_pb(args.output)
     if args.dump != None:
@@ -415,7 +422,7 @@ def propose(args):
             try:
                 ann = global_aliasor.compress(ann)
             except:
-                print(f"Could not compress lineage {ann}")
+                # print(f"Could not compress lineage {ann}")
                 pass
             for leaf in t.get_leaves_ids(nid):
                 if leaf not in labels:
