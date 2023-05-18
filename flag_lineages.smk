@@ -158,19 +158,19 @@ rule compute_escape_weights:
             for ls in wvc.index:
                 print("\t".join([str(v) for v in ['S', ls[1:]+ls[0], 1 + wvc[ls] * config['lineage_params']['weight_params']['escape_weighting']]]), file=wout)
 
-rule download_tree:
-    #many public trees can be obtained online, from http://hgdownload.soe.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/2022/09/28/
-    #if the indicated tree file is not found locally, it will attempt to download it from this source.
-    output:
-        "{tree}.pb.gz",
-        "{tree}.metadata.tsv.gz"
-    run:
-        date = wildcards.tree.split(".")[0].split("-")[1:]
-        link = "http://hgdownload.soe.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/{}/{}/{}/".format(*date)
-        fn = wildcards.tree.split(".")[0] + ".all.masked.pb.gz"
-        shell("wget " + link + fn)
-        shell("mv {} {}".format(fn, output[0]))
-        shell("wget " + link + output[1])
+# rule download_tree:
+#     #many public trees can be obtained online, from http://hgdownload.soe.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/2022/09/28/
+#     #if the indicated tree file is not found locally, it will attempt to download it from this source.
+#     output:
+#         "{tree}.pb.gz",
+#         "{tree}.metadata.tsv.gz"
+#     run:
+#         date = wildcards.tree.split(".")[0].split("-")[1:]
+#         link = "http://hgdownload.soe.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/{}/{}/{}/".format(*date)
+#         fn = wildcards.tree.split(".")[0] + ".all.masked.pb.gz"
+#         shell("wget " + link + fn)
+#         shell("mv {} {}".format(fn, output[0]))
+#         shell("wget " + link + output[1])
 
 rule filter_tree:
     input:
@@ -178,9 +178,12 @@ rule filter_tree:
         "{tree}.nodestats.txt"
     output:
         temp("{tree}.filtered.allan.pb")
-    shell:
-        "{config[python]} filter_reversions.py {input[0]} {input[1]} {output}"
-
+    run:
+        if eval(str({config[reversion_threshold]})):
+           shell("{config[python]} filter_reversions.py {input[0]} {input[1]} {output} {config[reversion_threshold]}")
+        else:
+            print("Skipping reversion thresholding...")
+            shell("cp {input[0]} {output}")
 rule simplify_annotations:
     input:
         "{tree}.filtered.allan.pb"

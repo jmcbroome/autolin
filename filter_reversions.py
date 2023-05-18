@@ -4,6 +4,11 @@ import bte
 treename = sys.argv[1]
 t = bte.MATree(treename)
 print("Tree loaded.")
+if sys.argv[4] != None:
+    thold = int(sys.argv[4])
+else:
+    print("Using default threshold (2 reversions on a branch)")
+    thold = 2
 to_prune = set()
 with open(sys.argv[2]) as inf:
     first = True
@@ -12,7 +17,7 @@ with open(sys.argv[2]) as inf:
             first = False
             continue
         node, lc, mc, md, reversions = entry.strip().split()
-        if int(reversions) >= 2:
+        if int(reversions) >= int():
             if lc == '1':
                 to_prune.add(node)
             else:
