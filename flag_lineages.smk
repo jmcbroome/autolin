@@ -179,11 +179,12 @@ rule filter_tree:
     output:
         temp("{tree}.filtered.allan.pb")
     run:
-        if eval(str({config[reversion_threshold]})):
+        if eval(str(config["use_reversion_filter"])):
            shell("{config[python]} filter_reversions.py {input[0]} {input[1]} {output} {config[reversion_threshold]}")
         else:
             print("Skipping reversion thresholding...")
-            shell("cp {input[0]} {output}")
+            shell("gunzip -c {input[0]} > {output}")
+
 rule simplify_annotations:
     input:
         "{tree}.filtered.allan.pb"

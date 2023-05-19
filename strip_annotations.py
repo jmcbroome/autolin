@@ -41,5 +41,9 @@ for n in t.depth_first_expansion():
         nannd[n.id] = [n.annotations[0]]
     else:
         nannd[n.id] = []
-t.apply_annotations(nannd)
+try:
+    t.apply_annotations(nannd)
+except:
+    #try newer function name
+    t.apply_node_annotations(nannd)
 t.save_pb(sys.argv[2])

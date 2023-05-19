@@ -22,7 +22,7 @@ lineage_params:
 python: python3
 reference_genome: ./reference/NC_045512v2.fa
 reference_gtf: ./reference/ncbiGenes.noORF1a.gtf
-use_reversion_filter: True
+use_reversion_filter: False
 reversion_threshold: 2
 request_params:
   active_since: 2023-02-01
